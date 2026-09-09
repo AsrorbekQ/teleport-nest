@@ -55,7 +55,7 @@ class Config:
 
 
 def load_config(path: Path | None = None) -> Config:
-    path = path or Path(os.environ.get("TELEPORT_HUB_CONFIG", CONFIG_PATH))
+    path = path or Path(os.environ.get("TELEPORT_NEST_CONFIG", CONFIG_PATH))
     raw: dict = {}
     if path.exists():
         with open(path, "rb") as f:

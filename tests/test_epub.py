@@ -3,7 +3,7 @@ import io
 
 from lxml import etree
 
-from hub.epub import Book, Chapter, Image, build_epub, fragment_to_xhtml, safe_filename
+from nest.epub import Book, Chapter, Image, build_epub, fragment_to_xhtml, safe_filename
 
 
 def test_epub_layout_is_valid():

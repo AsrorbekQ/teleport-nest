@@ -29,7 +29,7 @@ from .epub import Book, Chapter, build_epub, safe_filename
 from .extract import extract_article, make_client
 from .feeds import build_digest, read_subscriptions
 
-log = logging.getLogger("hub.jobs")
+log = logging.getLogger("nest.jobs")
 OUT_DIR = DATA_DIR / "out"
 UPLOAD_DIR = DATA_DIR / "uploads"
 
@@ -41,7 +41,7 @@ class JobRunner:
         self.device = device
         self._wake = threading.Event()
         self._stop = threading.Event()
-        self._thread = threading.Thread(target=self._loop, name="hub-jobs", daemon=True)
+        self._thread = threading.Thread(target=self._loop, name="nest-jobs", daemon=True)
         self._scheduler = BackgroundScheduler()
         OUT_DIR.mkdir(parents=True, exist_ok=True)
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)

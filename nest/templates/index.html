@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Teleport Hub</title>
+<title>Teleport Nest</title>
 <style>
   :root { --ink: #1b1b1b; --muted: #666; --line: #ddd; --bg: #f7f6f2; --card: #fff; --accent: #2b5797; --ok: #2e7d32; --bad: #b3261e; }
   * { box-sizing: border-box; }
@@ -45,7 +45,7 @@
 </head>
 <body>
 <header>
-  <h1>Teleport Hub</h1>
+  <h1>Teleport Nest</h1>
   <div id="status"><span><span class="dot" id="dot"></span><span id="statusText">checking device…</span></span><span id="pending"></span></div>
 </header>
 <nav>
@@ -129,7 +129,7 @@
 
 <section id="tab-settings">
   <h2>Settings</h2>
-  <p>Edit <code>config.toml</code> in the hub folder and restart. Current values:</p>
+  <p>Edit <code>config.toml</code> in the Teleport Nest folder and restart. Current values:</p>
   <table>
     <tr><th>Device URLs</th><td>{{ config.device_urls|join(", ") }}</td></tr>
     <tr><th>Books folder</th><td>{{ config.books_dir }}</td></tr>
@@ -142,7 +142,7 @@
     <tr><th>Schedules</th><td>{% for s in config.schedules %}<code>{{ s.cron }}</code> → {{ s.job }}<br>{% else %}—{% endfor %}</td></tr>
   </table>
   <h3>How sending works</h3>
-  <p class="muted">Open <b>File Transfer</b> on the device and connect it to your Wi-Fi. The hub finds it at the device URL, uploads anything queued, and shows it as online above. Everything you send while it is offline waits in Jobs and goes out automatically the next time it appears.</p>
+  <p class="muted">Open <b>File Transfer</b> on the device and connect it to your Wi-Fi. Nest finds it at the device URL, uploads anything queued, and shows it as online above. Everything you send while it is offline waits in Jobs and goes out automatically the next time it appears.</p>
 </section>
 
 </main>
@@ -169,7 +169,7 @@ async function refreshStatus() {
     $('#dot').classList.toggle('on', s.online);
     $('#statusText').textContent = s.online ? `${s.status.device || 'device'} at ${s.status.ip} · fw ${s.status.version} · heap ${Math.round(s.status.freeHeap/1024)} KB` : 'device offline (open File Transfer on the reader)';
     $('#pending').textContent = s.pending ? `${s.pending} pending` : '';
-  } catch (e) { $('#statusText').textContent = 'hub unreachable'; }
+  } catch (e) { $('#statusText').textContent = 'Nest unreachable'; }
 }
 async function sendUrls(endpoint) {
   const text = $('#urls').value.trim(); if (!text) return toast('Paste a URL first', true);

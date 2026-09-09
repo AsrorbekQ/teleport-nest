@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 
-from hub.device import DeviceClient, DeviceOffline
+from nest.device import DeviceClient, DeviceOffline
 
 
 class FakeDevice:

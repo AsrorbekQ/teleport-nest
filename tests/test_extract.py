@@ -4,7 +4,7 @@ from pathlib import Path
 import httpx
 from PIL import Image
 
-from hub.extract import extract_article
+from nest.extract import extract_article
 
 FIXTURE = Path(__file__).parent / "fixtures" / "article.html"
 

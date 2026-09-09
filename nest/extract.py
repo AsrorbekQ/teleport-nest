@@ -17,7 +17,7 @@ from .epub import Image
 
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) "
-    "Version/17.4 Safari/605.1.15 TeleportHub/1.0"
+    "Version/17.4 Safari/605.1.15 TeleportNest/1.0"
 )
 MAX_IMAGE_BYTES = 4 * 1024 * 1024
 

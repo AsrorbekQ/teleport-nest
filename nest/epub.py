@@ -30,7 +30,7 @@ class Image:
 @dataclass
 class Book:
     title: str
-    author: str = "Teleport Hub"
+    author: str = "Teleport Nest"
     language: str = "en"
     chapters: list[Chapter] = field(default_factory=list)
     images: list[Image] = field(default_factory=list)

@@ -1,4 +1,4 @@
-"""Teleport Hub: FastAPI app serving the single-page UI and its JSON API."""
+"""Teleport Nest: FastAPI app serving the single-page UI and its JSON API."""
 
 from __future__ import annotations
 
@@ -19,16 +19,16 @@ from .db import Database
 from .device import DeviceClient, DeviceOffline
 from .jobs import UPLOAD_DIR, JobRunner
 
-log = logging.getLogger("hub")
+log = logging.getLogger("nest")
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
 def create_app(config: Config | None = None, device: DeviceClient | None = None, db: Database | None = None) -> FastAPI:
     config = config or load_config()
-    db = db or Database(DATA_DIR / "hub.sqlite")
+    db = db or Database(DATA_DIR / "nest.sqlite")
     device = device or DeviceClient(config.device_urls, config.device_timeout)
     runner = JobRunner(config, db, device)
-    app = FastAPI(title="Teleport Hub")
+    app = FastAPI(title="Teleport Nest")
     app.state.config = config
     app.state.db = db
     app.state.device = device

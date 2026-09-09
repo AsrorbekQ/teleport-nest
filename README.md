@@ -1,4 +1,4 @@
-# Teleport Hub
+# Teleport Nest
 
 A small local web app that feeds a [Teleport](https://github.com/AsrorbekQ/teleport) e-reader (Xteink X4 running the Teleport / CrossPoint firmware) from your computer:
 
@@ -23,11 +23,11 @@ cp config.example.toml config.toml   # optional, edit device URL etc.
 open http://127.0.0.1:8787
 ```
 
-Set `server.host = "0.0.0.0"` in `config.toml` to use the hub from your phone on the same Wi-Fi.
+Set `server.host = "0.0.0.0"` in `config.toml` to use Nest from your phone on the same Wi-Fi.
 
 ## How the device receives files
 
-The firmware only runs its web server inside the **File Transfer** app. Open it on the reader, connect to your Wi-Fi, and the hub finds the device at `http://crosspoint.local` (or the IP shown on the reader's screen; add it under `[device] urls`). The status bar turns green and queued jobs flush. Close File Transfer when done; the hub keeps queuing.
+The firmware only runs its web server inside the **File Transfer** app. Open it on the reader, connect to your Wi-Fi, and Nest finds the device at `http://crosspoint.local` (or the IP shown on the reader's screen; add it under `[device] urls`). The status bar turns green and queued jobs flush. Close File Transfer when done; Nest keeps queuing.
 
 Files land in `/Books`. Data pushes go to `/apps/rss/subscriptions.txt`, `/apps/habits/habits.bin`, `/apps/flashcards/gre.deck`, `/apps/briefing/config.txt` and `/apps/readlater/queue.txt`.
 
@@ -48,13 +48,13 @@ Covers the EPUB writer, article extraction and image processing on a fixture pag
 ## Layout
 
 ```
-hub/app.py       FastAPI routes and the single-page UI
-hub/device.py    client for the device's File Transfer API
-hub/extract.py   fetch + readability + image processing
-hub/epub.py      EPUB 3 writer
-hub/convert.py   Calibre wrapper
-hub/feeds.py     RSS digest builder
-hub/jobs.py      job queue, worker thread, cron scheduler
-hub/data.py      habits / feeds / deck / briefing editors
-hub/db.py        SQLite (jobs, sent articles, settings)
+nest/app.py       FastAPI routes and the single-page UI
+nest/device.py    client for the device's File Transfer API
+nest/extract.py   fetch + readability + image processing
+nest/epub.py      EPUB 3 writer
+nest/convert.py   Calibre wrapper
+nest/feeds.py     RSS digest builder
+nest/jobs.py      job queue, worker thread, cron scheduler
+nest/data.py      habits / feeds / deck / briefing editors
+nest/db.py        SQLite (jobs, sent articles, settings)
 ```
