@@ -125,7 +125,7 @@ def build_digest(
         heading = f"{article.title}"
         chapters.append(Chapter(heading, f"<p><em>{item.feed_title}{' - ' + item.published if item.published else ''}</em></p>" + html_body, item.url))
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-    book = Book(title=f"Digest {stamp}", author="Teleport Nest", chapters=chapters, images=images,
+    book = Book(title=f"Digest {stamp}", author="Nest", chapters=chapters, images=images,
                 description=f"{len(chapters)} articles from {len(subscriptions)} feeds")
     path = out_dir / safe_filename(f"Digest {stamp}")
     path.write_bytes(build_epub(book))

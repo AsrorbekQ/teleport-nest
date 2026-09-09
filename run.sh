@@ -1,5 +1,5 @@
 #!/bin/sh
-# Starts Teleport Nest on http://127.0.0.1:8787 (override with server.host/port in config.toml).
+# Starts Nest on http://127.0.0.1:8787 (override with server.host/port in config.toml).
 cd "$(dirname "$0")"
 if [ ! -d .venv ]; then
   python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt

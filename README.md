@@ -1,6 +1,6 @@
-# Teleport Nest
+# Nest
 
-A small local web app that feeds a [Teleport](https://github.com/AsrorbekQ/teleport) e-reader (Xteink X4 running the Teleport / CrossPoint firmware) from your computer:
+Nest is a small local web app that feeds a [Teleport](https://github.com/AsrorbekQ/teleport) e-reader (Xteink X4 running the Teleport / CrossPoint firmware) from your computer:
 
 - **Web page → EPUB.** Paste URLs; each becomes a clean EPUB with grayscale, downscaled images and is sent to the device's Books folder.
 - **Document → EPUB.** Drop PDF, DOCX, MOBI, HTML, Markdown and more; Calibre converts them with an e-ink profile.

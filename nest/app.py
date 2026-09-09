@@ -1,4 +1,4 @@
-"""Teleport Nest: FastAPI app serving the single-page UI and its JSON API."""
+"""Nest: FastAPI app serving the single-page UI and its JSON API."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ def create_app(config: Config | None = None, device: DeviceClient | None = None,
     db = db or Database(DATA_DIR / "nest.sqlite")
     device = device or DeviceClient(config.device_urls, config.device_timeout)
     runner = JobRunner(config, db, device)
-    app = FastAPI(title="Teleport Nest")
+    app = FastAPI(title="Nest")
     app.state.config = config
     app.state.db = db
     app.state.device = device
