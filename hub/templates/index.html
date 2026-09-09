@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teleport Hub</title>
+<style>
+  :root { --ink: #1b1b1b; --muted: #666; --line: #ddd; --bg: #f7f6f2; --card: #fff; --accent: #2b5797; --ok: #2e7d32; --bad: #b3261e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg); }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+  #status { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; gap: 14px; align-items: center; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--bad); margin-right: 6px; vertical-align: middle; }
+  .dot.on { background: var(--ok); }
+  nav { display: flex; gap: 4px; padding: 10px 20px 0; flex-wrap: wrap; }
+  nav button { border: 1px solid var(--line); background: var(--card); padding: 7px 14px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 14px; }
+  nav button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  main { padding: 20px; max-width: 1000px; }
+  section { display: none; background: var(--card); border: 1px solid var(--line); border-radius: 0 10px 10px 10px; padding: 18px 20px; }
+  section.active { display: block; }
+  h2 { font-size: 16px; margin: 0 0 10px; }
+  h3 { font-size: 14px; margin: 18px 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  textarea, input[type=text], input[type=number], input[type=password], select { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  textarea { min-height: 120px; font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+  .row label { min-width: 110px; color: var(--muted); font-size: 13px; }
+  .row input, .row select { flex: 1; min-width: 160px; }
+  button.primary { background: var(--accent); color: #fff; border: 0; padding: 9px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  button.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  button:disabled { opacity: .5; cursor: default; }
+  .drop { border: 2px dashed var(--line); border-radius: 10px; padding: 26px; text-align: center; color: var(--muted); margin: 10px 0; }
+  .drop.over { border-color: var(--accent); color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; background: #eee; }
+  .tag.done { background: #e3f2e6; color: var(--ok); } .tag.failed { background: #fbe4e2; color: var(--bad); }
+  .tag.waiting, .tag.queued { background: #fff4d6; color: #8a6d00; } .tag.running { background: #e2ecfa; color: var(--accent); }
+  .muted { color: var(--muted); font-size: 13px; }
+  #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  code { background: #eee; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Teleport Hub</h1>
+  <div id="status"><span><span class="dot" id="dot"></span><span id="statusText">checking device…</span></span><span id="pending"></span></div>
+</header>
+<nav>
+  <button data-tab="send" class="active">Send</button>
+  <button data-tab="library">Library</button>
+  <button data-tab="feeds">Feeds</button>
+  <button data-tab="data">Device data</button>
+  <button data-tab="jobs">Jobs</button>
+  <button data-tab="settings">Settings</button>
+</nav>
+<main>
+
+<section id="tab-send" class="active">
+  <h2>Web page → EPUB</h2>
+  <p class="muted">One URL per line. Each becomes a clean EPUB with grayscale images and lands in <code>{{ config.books_dir }}</code> when the device is in File Transfer mode.</p>
+  <textarea id="urls" placeholder="https://…"></textarea>
+  <div class="row">
+    <button class="primary" onclick="sendUrls('/api/send/url')">Convert to EPUB and send</button>
+    <button class="ghost" onclick="sendUrls('/api/send/readlater')">Send to Read Later instead</button>
+  </div>
+  <p class="muted">Read Later queues the link on the device; the device fetches the page itself when you open it.</p>
+
+  <h2 style="margin-top:22px">Document → EPUB</h2>
+  <div class="drop" id="drop">Drop files here or <label style="color:var(--accent);cursor:pointer"><input type="file" id="fileInput" multiple style="display:none">choose files</label><br><span class="muted">{{ convertible|join(", ") }}, epub</span></div>
+</section>
+
+<section id="tab-library">
+  <div class="row"><h2 style="margin:0">Books on the device</h2><button class="ghost" onclick="loadLibrary()">Refresh</button></div>
+  <div id="libraryBox" class="muted">Device offline.</div>
+</section>
+
+<section id="tab-feeds">
+  <h2>RSS digest</h2>
+  <div class="row">
+    <label>Per feed</label><input type="number" id="perFeed" value="{{ config.digest_per_feed }}" min="1" max="20" style="max-width:90px">
+    <label>Mode</label>
+    <select id="digestMode" style="max-width:220px">
+      <option value="digest" {% if config.digest_mode == 'digest' %}selected{% endif %}>One digest book</option>
+      <option value="articles" {% if config.digest_mode == 'articles' %}selected{% endif %}>One book per article</option>
+    </select>
+    <button class="primary" onclick="buildDigest()">Build digest now</button>
+  </div>
+  <p class="muted">Articles already sent are skipped. Schedules live in <code>config.toml</code>.</p>
+  <h3>Subscriptions</h3>
+  <textarea id="subs">{{ subscriptions }}</textarea>
+  <div class="row">
+    <button class="ghost" onclick="saveFeeds('0')">Save locally</button>
+    <button class="primary" onclick="saveFeeds('1')">Save and push to device</button>
+  </div>
+</section>
+
+<section id="tab-data">
+  <h2>Habits</h2>
+  <p class="muted">One per line: <code>name: 2026-09-01, 2026-09-03..2026-09-07</code>. Pull first to keep check-ins made on the device.</p>
+  <textarea id="habits">{{ habits }}</textarea>
+  <div class="row">
+    <button class="ghost" onclick="habitsPull()">Pull from device</button>
+    <button class="primary" onclick="habitsPush()">Save and push to device</button>
+  </div>
+
+  <h2 style="margin-top:22px">Flashcards</h2>
+  <p class="muted">Upload an Anki <code>.apkg</code> export. It becomes <code>/apps/flashcards/gre.deck</code> on the device.</p>
+  <div class="row"><input type="file" id="apkg" accept=".apkg"><button class="primary" onclick="uploadDeck()">Convert and send</button></div>
+
+  <h2 style="margin-top:22px">Sleep briefing</h2>
+  <p class="muted">Shown on the sleep screen when enabled. Weather via Open-Meteo needs a location; tasks need a Todoist API token (Todoist → Settings → Integrations → Developer).</p>
+  <form id="briefingForm" onsubmit="return saveBriefing(event)">
+    <div class="row"><label>Enabled</label><select name="enabled" style="max-width:120px"><option value="0" {% if briefing.enabled != '1' %}selected{% endif %}>Off</option><option value="1" {% if briefing.enabled == '1' %}selected{% endif %}>On</option></select></div>
+    <div class="row"><label>City label</label><input type="text" name="city" value="{{ briefing.city }}" placeholder="Tashkent"></div>
+    <div class="row"><label>Latitude</label><input type="text" name="lat" value="{{ briefing.lat }}" placeholder="41.31"><label>Longitude</label><input type="text" name="lon" value="{{ briefing.lon }}" placeholder="69.28"></div>
+    <div class="row"><label>Todoist token</label><input type="password" name="todoist_token" value="{{ briefing.todoist_token }}"></div>
+    <div class="row"><label>Todoist URL</label><input type="text" name="todoist_url" value="{{ briefing.todoist_url }}" placeholder="(optional) override tasks endpoint"></div>
+    <div class="row"><button class="primary" type="submit">Save and push to device</button></div>
+  </form>
+</section>
+
+<section id="tab-jobs">
+  <div class="row"><h2 style="margin:0">Jobs</h2><button class="ghost" onclick="loadJobs()">Refresh</button><button class="ghost" onclick="post('/api/jobs/flush').then(loadJobs)">Retry waiting now</button></div>
+  <div id="jobsBox"></div>
+</section>
+
+<section id="tab-settings">
+  <h2>Settings</h2>
+  <p>Edit <code>config.toml</code> in the hub folder and restart. Current values:</p>
+  <table>
+    <tr><th>Device URLs</th><td>{{ config.device_urls|join(", ") }}</td></tr>
+    <tr><th>Books folder</th><td>{{ config.books_dir }}</td></tr>
+    <tr><th>Calibre</th><td>{{ config.calibre }}</td></tr>
+    <tr><th>Firmware repo</th><td>{{ config.firmware_repo }}</td></tr>
+    <tr><th>Subscriptions</th><td>{{ config.subscriptions_file }}</td></tr>
+    <tr><th>Habits</th><td>{{ config.habits_file }}</td></tr>
+    <tr><th>Briefing</th><td>{{ config.briefing_file }}</td></tr>
+    <tr><th>Watched folder</th><td>{{ config.watch_dir or "—" }}</td></tr>
+    <tr><th>Schedules</th><td>{% for s in config.schedules %}<code>{{ s.cron }}</code> → {{ s.job }}<br>{% else %}—{% endfor %}</td></tr>
+  </table>
+  <h3>How sending works</h3>
+  <p class="muted">Open <b>File Transfer</b> on the device and connect it to your Wi-Fi. The hub finds it at the device URL, uploads anything queued, and shows it as online above. Everything you send while it is offline waits in Jobs and goes out automatically the next time it appears.</p>
+</section>
+
+</main>
+<div id="toast"></div>
+<script>
+const $ = (s) => document.querySelector(s);
+function toast(msg, bad) { const t = $('#toast'); t.textContent = msg; t.style.background = bad ? 'var(--bad)' : 'var(--ink)'; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2600); }
+async function post(url, body) {
+  const opts = { method: 'POST' };
+  if (body instanceof FormData) opts.body = body; else if (body) { opts.body = new URLSearchParams(body); }
+  const r = await fetch(url, opts);
+  let data = {}; try { data = await r.json(); } catch (e) {}
+  if (!r.ok) throw new Error(data.detail || r.statusText);
+  return data;
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('main section').forEach(s => s.classList.toggle('active', s.id === 'tab-' + b.dataset.tab));
+  if (b.dataset.tab === 'library') loadLibrary(); if (b.dataset.tab === 'jobs') loadJobs();
+});
+async function refreshStatus() {
+  try {
+    const s = await (await fetch('/api/device/status')).json();
+    $('#dot').classList.toggle('on', s.online);
+    $('#statusText').textContent = s.online ? `${s.status.device || 'device'} at ${s.status.ip} · fw ${s.status.version} · heap ${Math.round(s.status.freeHeap/1024)} KB` : 'device offline (open File Transfer on the reader)';
+    $('#pending').textContent = s.pending ? `${s.pending} pending` : '';
+  } catch (e) { $('#statusText').textContent = 'hub unreachable'; }
+}
+async function sendUrls(endpoint) {
+  const text = $('#urls').value.trim(); if (!text) return toast('Paste a URL first', true);
+  try { const r = await post(endpoint, { url: text }); toast(`Queued ${r.jobs.length} job(s)`); $('#urls').value = ''; loadJobs(); } catch (e) { toast(e.message, true); }
+}
+async function sendFiles(files) {
+  for (const f of files) { const fd = new FormData(); fd.append('file', f); try { await post('/api/send/file', fd); toast(`Queued ${f.name}`); } catch (e) { toast(`${f.name}: ${e.message}`, true); } }
+  loadJobs();
+}
+const drop = $('#drop');
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); sendFiles(e.dataTransfer.files); };
+$('#fileInput').onchange = e => sendFiles(e.target.files);
+async function loadLibrary() {
+  const box = $('#libraryBox');
+  try {
+    const files = await (await fetch('/api/library')).json();
+    if (!Array.isArray(files)) throw new Error(files.detail || 'offline');
+    if (!files.length) { box.textContent = 'No files.'; return; }
+    box.innerHTML = '<table><tr><th>Name</th><th>Size</th><th></th></tr>' + files.map(f => `<tr><td>${f.is_dir ? '📁 ' : ''}${esc(f.name)}</td><td>${f.is_dir ? '' : (f.size/1024).toFixed(0) + ' KB'}</td><td>${f.is_dir ? '' : `<button class="ghost" onclick="deleteFile('${esc(f.path)}')">Delete</button>`}</td></tr>`).join('') + '</table>';
+  } catch (e) { box.textContent = 'Device offline. Open File Transfer on the reader and refresh.'; }
+}
+async function deleteFile(path) { if (!confirm('Delete ' + path + ' from the device?')) return; try { await post('/api/library/delete', { path }); toast('Deleted'); loadLibrary(); } catch (e) { toast(e.message, true); } }
+async function buildDigest() { try { await post('/api/feeds/digest', { per_feed: $('#perFeed').value, mode: $('#digestMode').value }); toast('Digest queued'); loadJobs(); } catch (e) { toast(e.message, true); } }
+async function saveFeeds(push) { try { const r = await post('/api/feeds/save', { text: $('#subs').value, push }); toast(r.detail || (r.pushed ? 'Saved and pushed' : 'Saved locally')); } catch (e) { toast(e.message, true); } }
+async function habitsPull() { try { const r = await post('/api/data/habits/pull'); $('#habits').value = r.text; toast('Pulled from device'); } catch (e) { toast(e.message, true); } }
+async function habitsPush() { try { const r = await post('/api/data/habits/push', { text: $('#habits').value }); toast(r.detail || 'Pushed'); } catch (e) { toast(e.message, true); } }
+async function uploadDeck() { const f = $('#apkg').files[0]; if (!f) return toast('Choose an .apkg first', true); const fd = new FormData(); fd.append('file', f); try { await post('/api/data/deck', fd); toast('Deck queued'); loadJobs(); } catch (e) { toast(e.message, true); } }
+async function saveBriefing(e) { e.preventDefault(); try { const r = await post('/api/data/briefing', new FormData($('#briefingForm'))); toast(r.detail || 'Saved and pushed'); } catch (err) { toast(err.message, true); } return false; }
+async function loadJobs() {
+  const jobs = await (await fetch('/api/jobs')).json();
+  const box = $('#jobsBox');
+  if (!jobs.length) { box.innerHTML = '<p class="muted">No jobs yet.</p>'; return; }
+  box.innerHTML = '<table><tr><th>#</th><th>Job</th><th>Status</th><th>Detail</th><th></th></tr>' + jobs.map(j => `<tr><td>${j.id}</td><td>${esc(j.title)}<br><span class="muted">${j.kind} · ${new Date(j.created*1000).toLocaleString()}</span></td><td><span class="tag ${j.status}">${j.status}</span></td><td class="muted">${esc(j.detail)}</td><td>${['failed','waiting','done'].includes(j.status) ? `<button class="ghost" onclick="post('/api/jobs/${j.id}/retry').then(loadJobs)">Retry</button>` : ''}</td></tr>`).join('') + '</table>';
+}
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+refreshStatus(); setInterval(refreshStatus, 15000); loadJobs(); setInterval(() => { if ($('#tab-jobs').classList.contains('active')) loadJobs(); }, 5000);
+</script>
+</body>
+</html>

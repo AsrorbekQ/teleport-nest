@@ -1,0 +1,37 @@
+# Copy to config.toml and edit. Everything is optional; these are the defaults.
+
+[device]
+# Tried in order until /api/status answers. Add the IP shown on the device's
+# File Transfer screen if crosspoint.local does not resolve on your network.
+urls = ["http://crosspoint.local", "http://192.168.1.50"]
+timeout = 4.0
+books_dir = "/Books"
+
+[paths]
+calibre = "/Applications/calibre.app/Contents/MacOS/ebook-convert"
+firmware_repo = "../crosspoint-reader-apps"   # provides scripts/habits_tool.py and scripts/anki_to_deck.py
+# subscriptions_file = "../crosspoint-reader-apps/local/subscriptions.txt"
+# habits_file = "../crosspoint-reader-apps/local/habits.txt"
+# briefing_file = "../crosspoint-reader-apps/local/briefing.txt"
+# watch_dir = "~/Desktop/to-reader"           # any document dropped here is converted and sent
+
+[digest]
+per_feed = 3
+mode = "digest"        # "digest" = one book per run, "articles" = one book per article
+
+[images]
+max_width = 480
+quality = 70
+max_images = 20
+
+[server]
+host = "127.0.0.1"     # use "0.0.0.0" to reach the hub from your phone
+port = 8787
+
+# Cron schedules (minute hour day month weekday). "digest" builds and queues a digest;
+# "flush" just retries anything waiting for the device.
+[[schedules]]
+cron = "0 6 * * *"
+job = "digest"
+per_feed = 3
+mode = "digest"
