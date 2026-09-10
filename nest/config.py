@@ -38,6 +38,9 @@ class Config:
     max_images: int = 20
     host: str = "127.0.0.1"
     port: int = 8787
+    apple_enabled: bool = True
+    apple_calendars: list[str] = field(default_factory=list)  # empty = every calendar
+    apple_refresh_minutes: int = 10
     schedules: list[Schedule] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -65,6 +68,7 @@ def load_config(path: Path | None = None) -> Config:
     digest = raw.get("digest", {})
     images = raw.get("images", {})
     server = raw.get("server", {})
+    apple = raw.get("apple", {})
     schedules = [Schedule(**s) for s in raw.get("schedules", [])]
     urls = device.get("urls") or ([device["url"]] if device.get("url") else None)
     kwargs = {
@@ -83,6 +87,9 @@ def load_config(path: Path | None = None) -> Config:
         "max_images": images.get("max_images"),
         "host": server.get("host"),
         "port": server.get("port"),
+        "apple_enabled": apple.get("enabled"),
+        "apple_calendars": apple.get("calendars"),
+        "apple_refresh_minutes": apple.get("refresh_minutes"),
     }
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
     if urls:

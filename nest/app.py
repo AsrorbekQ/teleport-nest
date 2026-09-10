@@ -9,10 +9,11 @@ import time
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from . import data as device_data
+from .apple import AgendaCache
 from .config import DATA_DIR, Config, load_config
 from .convert import CONVERTIBLE
 from .db import Database
@@ -28,6 +29,8 @@ def create_app(config: Config | None = None, device: DeviceClient | None = None,
     db = db or Database(DATA_DIR / "nest.sqlite")
     device = device or DeviceClient(config.device_urls, config.device_timeout)
     runner = JobRunner(config, db, device)
+    agenda = AgendaCache(config.apple_calendars, config.apple_refresh_minutes * 60) if config.apple_enabled else None
+    runner.agenda = agenda
     app = FastAPI(title="Nest")
     app.state.config = config
     app.state.db = db
@@ -37,6 +40,8 @@ def create_app(config: Config | None = None, device: DeviceClient | None = None,
     @app.on_event("startup")
     def _start() -> None:
         runner.start()
+        if agenda is not None:
+            threading.Thread(target=agenda.refresh, daemon=True).start()
         if config.watch_dir:
             threading.Thread(target=_watch_folder, args=(config, runner), daemon=True).start()
 
@@ -57,6 +62,8 @@ def create_app(config: Config | None = None, device: DeviceClient | None = None,
                 "briefing": device_data.parse_briefing(
                     device_data.read_text(config.briefing_file, device_data.BRIEFING_TEMPLATE)
                 ),
+                "tasks_url_default": tasks_url_default(config),
+                "apple_enabled": agenda is not None,
                 "convertible": sorted(CONVERTIBLE),
             },
         )
@@ -158,10 +165,11 @@ def create_app(config: Config | None = None, device: DeviceClient | None = None,
     @app.post("/api/data/briefing")
     def briefing_save(
         enabled: str = Form("0"), city: str = Form(""), lat: str = Form(""), lon: str = Form(""),
-        todoist_token: str = Form(""), todoist_url: str = Form(""),
+        tasks_url: str = Form(""),
     ):
-        values = {"enabled": enabled, "city": city, "lat": lat, "lon": lon, "todoist_token": todoist_token,
-                  "todoist_url": todoist_url}
+        if not tasks_url.strip() and agenda is not None:
+            tasks_url = tasks_url_default(config)
+        values = {"enabled": enabled, "city": city, "lat": lat, "lon": lon, "tasks_url": tasks_url.strip()}
         try:
             device_data.briefing_push(config, device, values)
             return {"ok": True, "pushed": True}
@@ -179,6 +187,20 @@ def create_app(config: Config | None = None, device: DeviceClient | None = None,
             shutil.copyfileobj(file.file, out)
         job_id = runner.enqueue("deck", f"Deck {name}", {"apkg": str(dest)})
         return {"ok": True, "jobs": [job_id]}
+
+    # ---- briefing tasks (fetched by the device over the LAN)
+    @app.get("/api/briefing/tasks.txt", response_class=PlainTextResponse)
+    def briefing_tasks_text():
+        if agenda is None:
+            return PlainTextResponse("", status_code=404)
+        return agenda.get().text()
+
+    @app.get("/api/briefing/tasks")
+    def briefing_tasks(refresh: int = 0):
+        if agenda is None:
+            raise HTTPException(404, "Apple integration is off (apple.enabled in config.toml)")
+        current = agenda.refresh() if refresh else agenda.get()
+        return {"lines": current.lines(), "fetched_at": current.fetched_at, "error": current.error}
 
     # ---- jobs
     @app.get("/api/jobs")
@@ -206,6 +228,24 @@ def create_app(config: Config | None = None, device: DeviceClient | None = None,
         return RedirectResponse("data:,")
 
     return app
+
+
+def lan_ip() -> str:
+    """The address the reader can reach this Mac on (no packets are sent)."""
+    import socket
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("10.255.255.255", 1))
+        return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+    finally:
+        s.close()
+
+
+def tasks_url_default(config: Config) -> str:
+    return f"http://{lan_ip()}:{config.port}/api/briefing/tasks.txt"
 
 
 def _watch_folder(config: Config, runner: JobRunner) -> None:

@@ -7,6 +7,7 @@ Nest is a small local web app that feeds a [Teleport](https://github.com/Asrorbe
 - **RSS digest.** Newest articles from your feeds, fetched in full, packed into one digest book or one book per article. Already-sent articles are skipped. Can run on a schedule.
 - **Read Later.** Send links to the device's Read Later queue; the reader fetches them itself.
 - **Device data.** Edit habits, RSS subscriptions and the sleep-briefing config, upload an Anki `.apkg` to rebuild the flashcard deck, browse and delete books on the device.
+- **Briefing tasks.** Serves today's Apple Calendar events and due Reminders as plain text at `/api/briefing/tasks.txt`; the reader's Briefing app fetches it over the LAN. macOS asks once for Automation access to Calendar and Reminders.
 - **Offline-tolerant.** Everything you send while the reader is off waits in the Jobs list and goes out automatically the next time the device shows up.
 
 ## Requirements
@@ -56,5 +57,6 @@ nest/convert.py   Calibre wrapper
 nest/feeds.py     RSS digest builder
 nest/jobs.py      job queue, worker thread, cron scheduler
 nest/data.py      habits / feeds / deck / briefing editors
+nest/apple.py     Calendar + Reminders agenda via AppleScript
 nest/db.py        SQLite (jobs, sent articles, settings)
 ```

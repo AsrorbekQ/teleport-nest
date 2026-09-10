@@ -21,6 +21,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from . import data as device_data
+from .apple import AgendaCache
 from .config import DATA_DIR, Config
 from .convert import convert_to_epub
 from .db import Database
@@ -43,6 +44,7 @@ class JobRunner:
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._loop, name="nest-jobs", daemon=True)
         self._scheduler = BackgroundScheduler()
+        self.agenda: AgendaCache | None = None  # set by the app when Apple integration is on
         OUT_DIR.mkdir(parents=True, exist_ok=True)
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -61,6 +63,8 @@ class JobRunner:
             elif schedule.job == "flush":
                 self._scheduler.add_job(self.wake, trigger)
         self._scheduler.add_job(self.wake, "interval", seconds=30)  # retry waiting jobs when the device shows up
+        if self.agenda is not None:
+            self._scheduler.add_job(self.agenda.refresh, "interval", minutes=self.config.apple_refresh_minutes)
         self._scheduler.start()
         self._thread.start()
 

@@ -25,8 +25,13 @@ quality = 70
 max_images = 20
 
 [server]
-host = "127.0.0.1"     # use "0.0.0.0" to reach Nest from your phone
+host = "0.0.0.0"       # the reader fetches briefing tasks from Nest, so listen on the LAN
 port = 8787
+
+[apple]
+enabled = true         # today's Calendar events and due Reminders for the briefing (macOS only)
+calendars = []         # e.g. ["Work", "Personal"]; empty = every calendar
+refresh_minutes = 10
 
 # Cron schedules (minute hour day month weekday). "digest" builds and queues a digest;
 # "flush" just retries anything waiting for the device.
