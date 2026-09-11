@@ -1,9 +1,12 @@
 """Background job queue with a single worker thread and a cron scheduler.
 
 Job kinds:
-  url_epub   {url}                      -> EPUB in data/out, then push
-  file_epub  {path, name}               -> Calibre conversion, then push
-  digest     {per_feed, mode}           -> digest EPUB(s), then push
+  url_epub   {url, dest?}               -> EPUB in data/out, then push
+  file_epub  {path, name, dest?}        -> Calibre conversion, then push
+  digest     {per_feed, mode, dest?}    -> digest EPUB(s), then push
+
+`dest` is a folder on the device; when absent the library defaults from
+config.toml apply (articles, books, papers for PDFs, digests).
   push       {file, dest_dir}           -> upload; stays "waiting" while the device is offline
   readlater  {urls: [..]}               -> POST /api/readlater; waits for the device
   deck       {apkg}                     -> anki_to_deck.py, then push
@@ -58,7 +61,8 @@ class JobRunner:
                 continue
             if schedule.job == "digest":
                 self._scheduler.add_job(
-                    self.enqueue, trigger, args=["digest", "Scheduled digest", {"per_feed": schedule.per_feed, "mode": schedule.mode}]
+                    self.enqueue, trigger,
+                    args=["digest", "Scheduled digest", {"per_feed": schedule.per_feed, "mode": schedule.mode, "dest": schedule.dest}],
                 )
             elif schedule.job == "flush":
                 self._scheduler.add_job(self.wake, trigger)
@@ -137,14 +141,15 @@ class JobRunner:
         path = OUT_DIR / safe_filename(article.title)
         path.write_bytes(build_epub(book))
         self.db.mark_sent(url, article.title)
-        self._push_file(job_id, path, self.config.books_dir)
+        self._push_file(job_id, path, self.config.destination("url", payload.get("dest")))
 
     def _job_file_epub(self, job_id: int, payload: dict) -> None:
         source = Path(payload["path"])
         self.db.update_job(job_id, "running", "converting with Calibre")
         destination = OUT_DIR / (source.stem + ".epub")
         convert_to_epub(source, destination, self.config.calibre)
-        self._push_file(job_id, destination, self.config.books_dir)
+        kind = "pdf" if source.suffix.lower() == ".pdf" else "file"
+        self._push_file(job_id, destination, self.config.destination(kind, payload.get("dest")))
 
     def _job_digest(self, job_id: int, payload: dict) -> None:
         subscriptions = read_subscriptions(self.config.subscriptions_file)
@@ -171,12 +176,13 @@ class JobRunner:
             self.db.update_job(job_id, "done", "nothing new since the last digest")
             return
         online = self.device.status() is not None
+        dest = self.config.destination("digest", payload.get("dest"))
         for path in files:
             if online:
-                self.device.ensure_dir(self.config.books_dir)
-                self.device.upload(self.config.books_dir, path.name, path.read_bytes())
+                self.device.ensure_dir(dest)
+                self.device.upload(dest, path.name, path.read_bytes())
             else:
-                self.db.add_job("push", f"Send {path.name}", {"file": str(path), "dest_dir": self.config.books_dir})
+                self.db.add_job("push", f"Send {path.name}", {"file": str(path), "dest_dir": dest})
         summary = f"{len(files)} file(s) " + ("sent" if online else "built; queued for sending")
         self.db.update_job(job_id, "done", summary, json.dumps([str(p) for p in files]))
 

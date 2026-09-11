@@ -30,11 +30,11 @@ Set `server.host = "0.0.0.0"` in `config.toml` to use Nest from your phone on th
 
 The firmware only runs its web server inside the **File Transfer** app. Open it on the reader, connect to your Wi-Fi, and Nest finds the device at `http://crosspoint.local` (or the IP shown on the reader's screen; add it under `[device] urls`). The status bar turns green and queued jobs flush. Close File Transfer when done; Nest keeps queuing.
 
-Files land in `/Books`. Data pushes go to `/apps/rss/subscriptions.txt`, `/apps/habits/habits.bin`, `/apps/flashcards/gre.deck`, `/apps/briefing/config.txt` and `/apps/readlater/queue.txt`.
+Every send action has a folder picker; defaults come from `[library]` in `config.toml` (web pages to `/Articles`, documents to `/Books`, PDFs to `/Papers`, digests to `/Digests`). The Library tab browses those folders and moves or deletes files. Data pushes go to `/apps/rss/subscriptions.txt`, `/apps/habits/habits.bin`, `/apps/flashcards/gre.deck`, `/apps/briefing/config.txt` and `/apps/readlater/queue.txt`.
 
 ## Config keys
 
-See `config.example.toml`. Sections: `[device]` (urls, timeout, books_dir), `[paths]` (calibre, firmware_repo, data files, optional watch_dir), `[digest]` (per_feed, mode), `[images]` (max_width, quality, max_images), `[server]` (host, port), and `[[schedules]]` entries with a cron expression and a job (`digest` or `flush`).
+See `config.example.toml`. Sections: `[device]` (urls, timeout), `[library]` (folders and per-kind defaults), `[paths]` (calibre, firmware_repo, data files, optional watch_dir), `[digest]` (per_feed, mode), `[images]` (max_width, quality, max_images), `[server]` (host, port), and `[[schedules]]` entries with a cron expression and a job (`digest` or `flush`).
 
 `config.toml` and `data/` (SQLite database, generated EPUBs, uploads) are gitignored; nothing personal is committed.
 

@@ -5,7 +5,7 @@
 # File Transfer screen if crosspoint.local does not resolve on your network.
 urls = ["http://crosspoint.local", "http://192.168.1.50"]
 timeout = 4.0
-books_dir = "/Books"
+books_dir = "/Books"   # legacy; see [library]
 
 [paths]
 calibre = "/Applications/calibre.app/Contents/MacOS/ebook-convert"
@@ -14,6 +14,17 @@ firmware_repo = "../crosspoint-reader-apps"   # provides scripts/habits_tool.py 
 # habits_file = "../crosspoint-reader-apps/local/habits.txt"
 # briefing_file = "../crosspoint-reader-apps/local/briefing.txt"
 # watch_dir = "~/Desktop/to-reader"           # any document dropped here is converted and sent
+
+[library]
+# Folders on the card offered in every "send" picker. Any other top-level folder on
+# the card shows up in the Library tab too.
+folders = ["/Books", "/Articles", "/Digests", "/Papers"]
+[library.defaults]
+url = "/Articles"      # web pages
+file = "/Books"        # dropped documents
+pdf = "/Papers"        # dropped PDFs
+digest = "/Digests"    # RSS digests
+watch = "/Books"       # files from the watched folder
 
 [digest]
 per_feed = 3

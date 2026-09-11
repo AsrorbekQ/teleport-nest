@@ -18,13 +18,16 @@ class Schedule:
     job: str  # digest | flush
     per_feed: int = 3
     mode: str = "digest"
+    dest: str | None = None  # device folder; library default for digests when unset
 
 
 @dataclass
 class Config:
     device_urls: list[str] = field(default_factory=lambda: ["http://crosspoint.local"])
     device_timeout: float = 4.0
-    books_dir: str = "/Books"
+    books_dir: str = "/Books"  # legacy alias for library_defaults["file"]
+    library_folders: list[str] = field(default_factory=lambda: ["/Books", "/Articles", "/Digests", "/Papers"])
+    library_defaults: dict[str, str] = field(default_factory=dict)  # url, file, pdf, digest, watch -> folder
     calibre: str = "/Applications/calibre.app/Contents/MacOS/ebook-convert"
     firmware_repo: Path = ROOT.parent / "crosspoint-reader-apps"
     subscriptions_file: Path | None = None  # defaults to <firmware_repo>/local/subscriptions.txt
@@ -51,10 +54,25 @@ class Config:
         self.briefing_file = Path(self.briefing_file) if self.briefing_file else local / "briefing.txt"
         if self.watch_dir:
             self.watch_dir = Path(self.watch_dir).expanduser()
+        self.library_folders = [_norm_dir(f) for f in self.library_folders] or ["/Books"]
+        defaults = {"url": "/Articles", "file": self.books_dir, "pdf": "/Papers", "digest": "/Digests", "watch": self.books_dir}
+        defaults.update({k: _norm_dir(v) for k, v in self.library_defaults.items() if v})
+        self.library_defaults = defaults
+
+    def destination(self, kind: str, requested: str | None = None) -> str:
+        """Folder on the device for a job: an explicit choice wins, else the configured default for `kind`."""
+        if requested and requested.strip():
+            return _norm_dir(requested)
+        return self.library_defaults.get(kind) or self.library_folders[0]
 
     @property
     def scripts_dir(self) -> Path:
         return self.firmware_repo / "scripts"
+
+
+def _norm_dir(path: str) -> str:
+    path = "/" + path.strip().strip("/")
+    return path if path != "/" else "/"
 
 
 def load_config(path: Path | None = None) -> Config:
@@ -69,6 +87,7 @@ def load_config(path: Path | None = None) -> Config:
     images = raw.get("images", {})
     server = raw.get("server", {})
     apple = raw.get("apple", {})
+    library = raw.get("library", {})
     schedules = [Schedule(**s) for s in raw.get("schedules", [])]
     urls = device.get("urls") or ([device["url"]] if device.get("url") else None)
     kwargs = {
@@ -90,6 +109,8 @@ def load_config(path: Path | None = None) -> Config:
         "apple_enabled": apple.get("enabled"),
         "apple_calendars": apple.get("calendars"),
         "apple_refresh_minutes": apple.get("refresh_minutes"),
+        "library_folders": library.get("folders"),
+        "library_defaults": library.get("defaults"),
     }
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
     if urls:

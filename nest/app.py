@@ -65,6 +65,8 @@ def create_app(config: Config | None = None, device: DeviceClient | None = None,
                 "tasks_url_default": tasks_url_default(config),
                 "apple_enabled": agenda is not None,
                 "convertible": sorted(CONVERTIBLE),
+                "folders": config.library_folders,
+                "defaults": config.library_defaults,
             },
         )
 
@@ -79,12 +81,27 @@ def create_app(config: Config | None = None, device: DeviceClient | None = None,
             "pending": db.count_jobs("waiting") + db.count_jobs("queued"),
         }
 
+    @app.get("/api/library/folders")
+    def library_folders():
+        """Configured folders plus any other top-level folder found on the card (skips dot and app dirs)."""
+        folders = list(config.library_folders)
+        try:
+            for f in device.list_files("/"):
+                if f.is_dir and not f.name.startswith(".") and f.path not in folders and f.name.lower() not in ("apps", "fonts", "sleep", "websites"):
+                    folders.append(f.path)
+        except DeviceOffline:
+            pass
+        return {"folders": folders, "defaults": config.library_defaults}
+
     @app.get("/api/library")
     def library(path: str | None = None):
+        folder = path or config.library_folders[0]
         try:
-            files = device.list_files(path or config.books_dir)
+            files = device.list_files(folder)
         except DeviceOffline:
             raise HTTPException(503, "device offline")
+        except Exception:
+            files = []  # folder does not exist yet
         return [f.__dict__ for f in files]
 
     @app.post("/api/library/delete")
@@ -95,13 +112,31 @@ def create_app(config: Config | None = None, device: DeviceClient | None = None,
             raise HTTPException(503, "device offline")
         return {"ok": True}
 
+    @app.post("/api/library/move")
+    def library_move(path: str = Form(...), dest: str = Form(...)):
+        try:
+            device.ensure_dir(dest)
+            device.move(path, dest)
+        except DeviceOffline:
+            raise HTTPException(503, "device offline")
+        return {"ok": True}
+
+    @app.post("/api/library/mkdir")
+    def library_mkdir(path: str = Form(...)):
+        try:
+            device.ensure_dir(path)
+        except DeviceOffline:
+            raise HTTPException(503, "device offline")
+        return {"ok": True}
+
     # ---- send
     @app.post("/api/send/url")
-    def send_url(url: str = Form(...)):
+    def send_url(url: str = Form(...), dest: str = Form("")):
         urls = [u.strip() for u in url.replace(",", "\n").splitlines() if u.strip()]
         if not urls:
             raise HTTPException(400, "no URL given")
-        ids = [runner.enqueue("url_epub", u, {"url": u}) for u in urls]
+        payload = {"dest": dest.strip()} if dest.strip() else {}
+        ids = [runner.enqueue("url_epub", u, {"url": u, **payload}) for u in urls]
         return {"ok": True, "jobs": ids}
 
     @app.post("/api/send/readlater")
@@ -113,21 +148,27 @@ def create_app(config: Config | None = None, device: DeviceClient | None = None,
         return {"ok": True, "jobs": [job_id]}
 
     @app.post("/api/send/file")
-    async def send_file(file: UploadFile = File(...)):
+    async def send_file(file: UploadFile = File(...), dest: str = Form("")):
         name = Path(file.filename or "upload").name
         suffix = Path(name).suffix.lower()
         if suffix not in CONVERTIBLE and suffix != ".epub":
             raise HTTPException(400, f"unsupported file type {suffix}")
-        dest = UPLOAD_DIR / f"{int(time.time())}-{name}"
-        with open(dest, "wb") as out:
+        dest_path = UPLOAD_DIR / f"{int(time.time())}-{name}"
+        with open(dest_path, "wb") as out:
             shutil.copyfileobj(file.file, out)
-        job_id = runner.enqueue("file_epub", name, {"path": str(dest), "name": name})
+        payload = {"path": str(dest_path), "name": name}
+        if dest.strip():
+            payload["dest"] = dest.strip()
+        job_id = runner.enqueue("file_epub", name, payload)
         return {"ok": True, "jobs": [job_id]}
 
     # ---- feeds
     @app.post("/api/feeds/digest")
-    def feeds_digest(per_feed: int = Form(3), mode: str = Form("digest")):
-        job_id = runner.enqueue("digest", f"Digest ({mode}, {per_feed}/feed)", {"per_feed": per_feed, "mode": mode})
+    def feeds_digest(per_feed: int = Form(3), mode: str = Form("digest"), dest: str = Form("")):
+        payload = {"per_feed": per_feed, "mode": mode}
+        if dest.strip():
+            payload["dest"] = dest.strip()
+        job_id = runner.enqueue("digest", f"Digest ({mode}, {per_feed}/feed)", payload)
         return {"ok": True, "jobs": [job_id]}
 
     @app.post("/api/feeds/save")
@@ -279,7 +320,7 @@ def _watch_folder(config: Config, runner: JobRunner) -> None:
                 if path.is_file() and path.suffix.lower() in CONVERTIBLE | {".epub"} and str(path) not in seen:
                     wait_for_file(path)
                     seen.add(str(path))
-                    runner.enqueue("file_epub", path.name, {"path": str(path), "name": path.name})
+                    runner.enqueue("file_epub", path.name, {"path": str(path), "name": path.name, "dest": config.library_defaults["watch"]})
         except FileNotFoundError:
             pass
         time.sleep(10)

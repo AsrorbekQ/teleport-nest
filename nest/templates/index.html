@@ -1,4 +1,7 @@
 <!doctype html>
+{% macro dest_select(id, default) -%}
+<span class="dest"><label for="{{ id }}">to</label><select id="{{ id }}" class="destSel" onchange="destChanged(this)">{% for f in folders %}<option value="{{ f }}" {% if f == default %}selected{% endif %}>{{ f.strip('/') }}</option>{% endfor %}<option value="__other">Other folder…</option></select><input type="text" class="destOther" placeholder="/Folder" style="display:none;max-width:160px"></span>
+{%- endmacro %}
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -66,6 +69,13 @@
   .row label { min-width: 110px; color: var(--muted); font-size: 13px; }
   .row input, .row select { flex: 1; min-width: 160px; }
   .field-hint { font-size: 12px; color: var(--muted); margin: -4px 0 10px; }
+  .dest { display: inline-flex; align-items: center; gap: 6px; }
+  .dest label { font-size: 13px; color: var(--muted); min-width: 0; }
+  .dest select { width: auto; min-width: 120px; padding: 7px 28px 7px 10px; }
+  .folders { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 12px; }
+  .folders .chip { font-size: 13px; padding: 5px 12px; }
+  .folders .chip .n { opacity: .6; margin-left: 4px; font-size: 11px; }
+  td select.mini { width: auto; padding: 4px 24px 4px 8px; font-size: 12.5px; }
 
   /* buttons */
   button.btn { --bg: var(--card); --fg: var(--ink); --bd: var(--line); position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg); color: var(--fg); border: 1px solid var(--bd); padding: 9px 16px; border-radius: 9px; cursor: pointer; font: inherit; font-size: 14px; font-weight: 500; line-height: 1.2; transition: transform .12s var(--ease), box-shadow .2s, background .15s, border-color .15s, filter .15s; user-select: none; white-space: nowrap; }
@@ -173,24 +183,27 @@
 <main>
 <section id="tab-send" class="active">
   <div class="card">
-    <h2>Web page → EPUB <span class="sub">clean text, grayscale images, lands in <code>{{ config.books_dir }}</code></span></h2>
+    <h2>Web page → EPUB <span class="sub">clean text, grayscale images</span></h2>
     <textarea id="urls" placeholder="https://…  (one per line)"></textarea>
     <div class="row">
       <button class="btn primary" onclick="run(this, () => sendUrls('/api/send/url'))">Convert and send</button>
+      {{ dest_select('urlDest', defaults['url']) }}
       <button class="btn" onclick="run(this, () => sendUrls('/api/send/readlater'))">Send to Read Later</button>
       <span class="muted" id="urlCount"></span>
     </div>
     <p class="muted">Read Later only queues the link; the reader fetches the page itself when you open it there.</p>
   </div>
   <div class="card">
-    <h2>Document → EPUB</h2>
+    <h2>Document → EPUB {{ dest_select('fileDest', '__auto') }}</h2>
+    <p class="muted" style="margin-top:0">Default: PDFs go to <code>{{ defaults['pdf'] }}</code>, everything else to <code>{{ defaults['file'] }}</code>. Pick a folder to override.</p>
     <div class="drop" id="drop"><div class="big">Drop files here or <label style="color:var(--accent);cursor:pointer"><input type="file" id="fileInput" multiple style="display:none">choose files</label></div><span class="muted">{{ convertible|join(", ") }}, epub</span></div>
   </div>
 </section>
 
 <section id="tab-library">
   <div class="card">
-    <h2>Books on the device <button class="btn small" style="margin-left:auto" onclick="run(this, loadLibrary)">Refresh</button></h2>
+    <h2>Library <span class="sub">folders on the card</span><button class="btn small" style="margin-left:auto" onclick="run(this, newFolder)">New folder</button><button class="btn small" onclick="run(this, () => loadLibrary())">Refresh</button></h2>
+    <div class="folders" id="folderChips"></div>
     <div id="libraryBox"><div class="empty"><div class="ico">📚</div>Open File Transfer on the reader to browse its books.</div></div>
   </div>
 </section>
@@ -205,6 +218,7 @@
         <option value="digest" {% if config.digest_mode == 'digest' %}selected{% endif %}>One digest book</option>
         <option value="articles" {% if config.digest_mode == 'articles' %}selected{% endif %}>One book per article</option>
       </select>
+      {{ dest_select('digestDest', defaults['digest']) }}
       <button class="btn primary" onclick="run(this, buildDigest)">Build digest now</button>
     </div>
     <p class="muted">Articles already sent are skipped. Schedules live in <code>config.toml</code>.</p>
@@ -258,7 +272,8 @@
     <h2>Settings <span class="sub">edit <code>config.toml</code> in the Nest folder and restart</span></h2>
     <table>
       <tr><th>Device URLs</th><td>{{ config.device_urls|join(", ") }}</td></tr>
-      <tr><th>Books folder</th><td>{{ config.books_dir }}</td></tr>
+      <tr><th>Library folders</th><td>{{ folders|join(", ") }}</td></tr>
+      <tr><th>Defaults</th><td>{% for k, v in defaults.items() %}{{ k }} → <code>{{ v }}</code>{% if not loop.last %} · {% endif %}{% endfor %}</td></tr>
       <tr><th>Calibre</th><td>{{ config.calibre }}</td></tr>
       <tr><th>Firmware repo</th><td>{{ config.firmware_repo }}</td></tr>
       <tr><th>Subscriptions</th><td>{{ config.subscriptions_file }}</td></tr>
@@ -332,7 +347,7 @@ function showTab(name) {
   $$('nav button').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
   $$('main section').forEach(s => { const on = s.id === 'tab-' + name; if (on && !s.classList.contains('active')) { s.classList.remove('active'); void s.offsetWidth; } s.classList.toggle('active', on); });
   try { localStorage.setItem('nest.tab', name); } catch (e) {}
-  if (name === 'library') loadLibrary();
+  if (name === 'library') loadLibrary().catch(() => {});
 }
 $$('nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
 try { const t = localStorage.getItem('nest.tab'); if (t && $('#tab-' + t)) showTab(t); } catch (e) {}
@@ -346,22 +361,31 @@ async function refreshStatus() {
     $('#pill').classList.toggle('on', s.online);
     $('#statusText').textContent = s.online ? `${s.status.device || 'Reader'} online · ${s.status.ip}` : 'Reader offline';
     $('#pill').title = s.online ? `firmware ${s.status.version} · free heap ${Math.round(s.status.freeHeap/1024)} KB` : 'Open File Transfer on the reader; queued jobs wait for it';
-    if (lastOnline === false && s.online) { toast('Reader connected', 'good'); loadJobs(); if ($('#tab-library').classList.contains('active')) loadLibrary(); }
+    if (lastOnline === false && s.online) { toast('Reader connected', 'good'); loadJobs(); if ($('#tab-library').classList.contains('active')) loadLibrary().catch(() => {}); }
     lastOnline = s.online;
   } catch (e) { $('#dot').className = 'dot'; $('#statusText').textContent = 'Nest unreachable'; }
 }
 
+// ---- destinations
+const FOLDERS = {{ folders|tojson }};
+function destChanged(sel) { const other = sel.parentElement.querySelector('.destOther'); other.style.display = sel.value === '__other' ? '' : 'none'; if (sel.value === '__other') other.focus(); try { localStorage.setItem('nest.dest.' + sel.id, sel.value); } catch (e) {} }
+function destValue(id) { const sel = document.getElementById(id); if (!sel) return ''; if (sel.value === '__other') return sel.parentElement.querySelector('.destOther').value.trim(); return sel.value === '__auto' ? '' : sel.value; }
+(() => { const f = $('#fileDest'); if (f) { const o = document.createElement('option'); o.value = '__auto'; o.textContent = 'Automatic'; f.prepend(o); f.value = '__auto'; }
+  $$('.destSel').forEach(sel => { try { const v = localStorage.getItem('nest.dest.' + sel.id); if (v && [...sel.options].some(o => o.value === v)) { sel.value = v; destChanged(sel); } } catch (e) {} }); })();
+
 // ---- send
 async function sendUrls(endpoint) {
   const text = $('#urls').value.trim(); if (!text) { toast('Paste a URL first', true); return false; }
-  const r = await post(endpoint, { url: text }); toast(`Queued ${r.jobs.length} job(s)`, 'good'); $('#urls').value = ''; updateUrlCount(); loadJobs();
+  const body = { url: text }; if (endpoint.endsWith('/url')) body.dest = destValue('urlDest');
+  const r = await post(endpoint, body); toast(`Queued ${r.jobs.length} job(s)${body.dest ? ' → ' + body.dest : ''}`, 'good'); $('#urls').value = ''; updateUrlCount(); loadJobs();
 }
 function updateUrlCount() { const n = $('#urls').value.split('\n').filter(l => l.trim()).length; $('#urlCount').textContent = n > 1 ? `${n} links` : ''; }
 $('#urls').addEventListener('input', updateUrlCount);
 $('#urls').addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); $('#tab-send .btn.primary').click(); } });
 async function sendFiles(files) {
   let ok = 0;
-  for (const f of files) { const fd = new FormData(); fd.append('file', f); try { await post('/api/send/file', fd); ok++; } catch (e) { toast(`${f.name}: ${e.message}`, true); } }
+  const dest = destValue('fileDest');
+  for (const f of files) { const fd = new FormData(); fd.append('file', f); if (dest) fd.append('dest', dest); try { await post('/api/send/file', fd); ok++; } catch (e) { toast(`${f.name}: ${e.message}`, true); } }
   if (ok) toast(`Queued ${ok} file(s)`, 'good');
   loadJobs();
 }
@@ -377,22 +401,37 @@ window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => { dragDepth = 0; document.body.classList.remove('dragging'); if (e.target.closest('#drop')) return; e.preventDefault(); if (e.dataTransfer.files.length) { showTab('send'); sendFiles(e.dataTransfer.files); } });
 
 // ---- library
-async function loadLibrary() {
+let currentFolder = null, knownFolders = FOLDERS.slice();
+async function loadLibrary(folder) {
+  if (typeof folder === 'string') currentFolder = folder;
   const box = $('#libraryBox');
-  const r = await fetch('/api/library'); const files = await r.json();
+  try { const fr = await (await fetch('/api/library/folders')).json(); knownFolders = fr.folders; } catch (e) {}
+  if (!currentFolder || !knownFolders.includes(currentFolder)) currentFolder = knownFolders[0];
+  $('#folderChips').innerHTML = knownFolders.map(f => `<button class="chip${f === currentFolder ? ' active' : ''}" onclick="loadLibrary('${esc(f)}')">${esc(f.replace(/^\//, ''))}</button>`).join('');
+  const r = await fetch('/api/library?path=' + encodeURIComponent(currentFolder)); const files = await r.json();
   if (!r.ok) { box.innerHTML = '<div class="empty"><div class="ico">📡</div>Reader offline. Open File Transfer and refresh.</div>'; return false; }
-  if (!files.length) { box.innerHTML = '<div class="empty"><div class="ico">📚</div>No books yet.</div>'; return; }
-  box.innerHTML = '<table><tr><th>Name</th><th>Size</th><th></th></tr>' + files.map(f => `<tr class="new"><td>${f.is_dir ? '📁 ' : ''}${esc(f.name)}</td><td class="muted">${f.is_dir ? '' : (f.size/1024).toFixed(0) + ' KB'}</td><td style="text-align:right">${f.is_dir ? '' : `<button class="btn small" data-path="${esc(f.path)}" onclick="confirmDelete(this)">Delete</button>`}</td></tr>`).join('') + '</table>';
+  if (!files.length) { box.innerHTML = `<div class="empty"><div class="ico">📚</div>Nothing in ${esc(currentFolder)} yet.</div>`; return; }
+  const others = knownFolders.filter(f => f !== currentFolder);
+  box.innerHTML = '<table><tr><th>Name</th><th>Size</th><th style="text-align:right">Move to</th><th></th></tr>' + files.map(f => `<tr class="new"><td>${f.is_dir ? '📁 ' : ''}${esc(f.name)}</td><td class="muted">${f.is_dir ? '' : (f.size/1024).toFixed(0) + ' KB'}</td><td style="text-align:right">${f.is_dir ? '' : `<select class="mini" onchange="moveFile(this, '${esc(f.path)}')"><option value="">…</option>${others.map(o => `<option value="${esc(o)}">${esc(o.replace(/^\//, ''))}</option>`).join('')}</select>`}</td><td style="text-align:right">${f.is_dir ? '' : `<button class="btn small" data-path="${esc(f.path)}" onclick="confirmDelete(this)">Delete</button>`}</td></tr>`).join('') + '</table>';
+}
+async function moveFile(sel, path) {
+  const dest = sel.value; if (!dest) return; sel.disabled = true;
+  try { await post('/api/library/move', { path, dest }); toast(`Moved to ${dest}`, 'good'); sel.closest('tr').style.opacity = '.3'; setTimeout(loadLibrary, 400); }
+  catch (e) { toast(e.message, true); sel.disabled = false; sel.value = ''; }
+}
+async function newFolder() {
+  const name = prompt('New folder on the card (e.g. /Papers/2026):'); if (!name) return false;
+  await post('/api/library/mkdir', { path: name }); toast(`Created ${name}`, 'good'); await loadLibrary(name.startsWith('/') ? name : '/' + name);
 }
 // Two-step delete: first press arms the button, second within 3 s deletes.
 function confirmDelete(btn) {
-  if (btn.dataset.armed) { run(btn, async () => { await post('/api/library/delete', { path: btn.dataset.path }); toast('Deleted', 'good'); btn.closest('tr').style.opacity = '.3'; setTimeout(loadLibrary, 500); }); return; }
+  if (btn.dataset.armed) { run(btn, async () => { await post('/api/library/delete', { path: btn.dataset.path }); toast('Deleted', 'good'); btn.closest('tr').style.opacity = '.3'; setTimeout(() => loadLibrary(), 500); }); return; }
   btn.dataset.armed = '1'; btn.classList.add('danger'); btn.textContent = 'Really delete?';
   setTimeout(() => { delete btn.dataset.armed; btn.classList.remove('danger'); btn.textContent = 'Delete'; }, 3000);
 }
 
 // ---- feeds / data
-async function buildDigest() { await post('/api/feeds/digest', { per_feed: $('#perFeed').value, mode: $('#digestMode').value }); toast('Digest queued', 'good'); loadJobs(); }
+async function buildDigest() { await post('/api/feeds/digest', { per_feed: $('#perFeed').value, mode: $('#digestMode').value, dest: destValue('digestDest') }); toast('Digest queued', 'good'); loadJobs(); }
 async function saveFeeds(push) { const r = await post('/api/feeds/save', { text: $('#subs').value, push }); toast(r.detail || (r.pushed ? 'Saved and pushed' : 'Saved locally'), r.pushed || push === '0' ? 'good' : undefined); if (push === '1' && !r.pushed) return false; }
 async function habitsPull() { const r = await post('/api/data/habits/pull'); $('#habits').value = r.text; toast('Pulled from device', 'good'); }
 async function habitsPush() { const r = await post('/api/data/habits/push', { text: $('#habits').value }); toast(r.detail || 'Pushed', r.pushed === false ? undefined : 'good'); if (r.pushed === false) return false; }
