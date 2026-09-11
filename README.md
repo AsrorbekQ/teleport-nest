@@ -46,6 +46,26 @@ See `config.example.toml`. Sections: `[device]` (urls, timeout, books_dir), `[pa
 
 Covers the EPUB writer, article extraction and image processing on a fixture page, and the device client against a fake device, including the Read Later fallback for firmware without the `/api/readlater` endpoint.
 
+## Always on (macOS login item)
+
+A launchd agent cannot run Nest from a folder under `~/Desktop`, `~/Documents` or
+`~/Downloads`: macOS denies those folders to launchd-spawned processes without
+any prompt. Wrap Nest in a small app instead, which gets the normal
+"allow access to your Desktop folder" prompt once:
+
+```sh
+cat > /tmp/nest.applescript <<'EOF2'
+do shell script "cd '/path/to/teleport-nest' && while :; do .venv/bin/uvicorn nest.app:app --host 0.0.0.0 --port 8787 >> data-nest.log 2>&1; sleep 5; done"
+EOF2
+osacompile -o ~/Applications/Nest.app /tmp/nest.applescript
+plutil -insert LSBackgroundOnly -bool true ~/Applications/Nest.app/Contents/Info.plist
+open ~/Applications/Nest.app
+```
+
+Then add `~/Applications/Nest.app` under System Settings > General > Login Items.
+The loop restarts uvicorn if it stops. To stop Nest: `pkill -f Nest.app; pkill -f "uvicorn nest.app"`.
+Log: `data-nest.log` in the repo.
+
 ## Layout
 
 ```
