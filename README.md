@@ -62,8 +62,25 @@ plutil -insert LSBackgroundOnly -bool true ~/Applications/Nest.app/Contents/Info
 open ~/Applications/Nest.app
 ```
 
-Then add `~/Applications/Nest.app` under System Settings > General > Login Items.
-The loop restarts uvicorn if it stops. To stop Nest: `pkill -f Nest.app; pkill -f "uvicorn nest.app"`.
+Then start it at login. Either add `~/Applications/Nest.app` under System Settings >
+General > Login Items, or install a launchd agent that only runs `open -g -a
+~/Applications/Nest.app` (launchd may run `open`; it is the app that touches the
+repo):
+
+```sh
+cat > ~/Library/LaunchAgents/com.teleport.nest.plist <<'EOF2'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.teleport.nest</string>
+  <key>ProgramArguments</key><array><string>/usr/bin/open</string><string>-g</string><string>-a</string><string>/Users/you/Applications/Nest.app</string></array>
+  <key>RunAtLoad</key><true/>
+</dict></plist>
+EOF2
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.teleport.nest.plist
+```
+
+The loop inside the app restarts uvicorn if it stops. To stop Nest: `pkill -f Nest.app; pkill -f "uvicorn nest.app"`.
 Log: `data-nest.log` in the repo.
 
 ## Layout
