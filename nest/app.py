@@ -177,6 +177,16 @@ def create_app(config: Config | None = None, device: DeviceClient | None = None,
             device_data.write_text(config.briefing_file, device_data.format_briefing(values))
             return {"ok": True, "pushed": False, "detail": "saved locally; device offline"}
 
+    @app.get("/api/data/briefing/device")
+    def briefing_device():
+        """The config as it is on the card right now, to check that a push landed."""
+        try:
+            return {"ok": True, "text": device.download("/apps/briefing/config.txt").decode("utf-8", "replace")}
+        except DeviceOffline:
+            raise HTTPException(503, "device offline")
+        except Exception as e:
+            raise HTTPException(404, f"no config on the device yet ({e})")
+
     @app.post("/api/data/deck")
     async def deck_upload(file: UploadFile = File(...)):
         name = Path(file.filename or "deck.apkg").name
@@ -244,8 +254,19 @@ def lan_ip() -> str:
         s.close()
 
 
+def bonjour_name() -> str:
+    """This Mac's .local name; the reader resolves it with mDNS, so a changing DHCP address does not matter."""
+    import subprocess
+
+    try:
+        name = subprocess.run(["scutil", "--get", "LocalHostName"], capture_output=True, text=True, timeout=5).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        name = ""
+    return f"{name}.local" if name else lan_ip()
+
+
 def tasks_url_default(config: Config) -> str:
-    return f"http://{lan_ip()}:{config.port}/api/briefing/tasks.txt"
+    return f"http://{bonjour_name()}:{config.port}/api/briefing/tasks.txt"
 
 
 def _watch_folder(config: Config, runner: JobRunner) -> None:

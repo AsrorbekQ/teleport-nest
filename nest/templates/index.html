@@ -117,7 +117,7 @@
     <div class="row"><label>City label</label><input type="text" name="city" value="{{ briefing.city }}" placeholder="Tashkent"></div>
     <div class="row"><label>Latitude</label><input type="text" name="lat" value="{{ briefing.lat }}" placeholder="41.31"><label>Longitude</label><input type="text" name="lon" value="{{ briefing.lon }}" placeholder="69.28"></div>
     <div class="row"><label>Tasks URL</label><input type="text" name="tasks_url" value="{{ briefing.tasks_url }}" placeholder="{{ tasks_url_default }} (filled in when left blank)"></div>
-    <div class="row"><button class="primary" type="submit">Save and push to device</button>{% if apple_enabled %}<button class="ghost" type="button" onclick="previewTasks()">Preview today's tasks</button>{% endif %}</div>
+    <div class="row"><button class="primary" type="submit">Save and push to device</button>{% if apple_enabled %}<button class="ghost" type="button" onclick="previewTasks()">Preview today's tasks</button>{% endif %}<button class="ghost" type="button" onclick="showDeviceBriefing()">Show config on device</button></div>
   </form>
   <pre id="tasksPreview" class="muted" style="white-space:pre-wrap"></pre>
 </section>
@@ -199,6 +199,7 @@ async function saveFeeds(push) { try { const r = await post('/api/feeds/save', {
 async function habitsPull() { try { const r = await post('/api/data/habits/pull'); $('#habits').value = r.text; toast('Pulled from device'); } catch (e) { toast(e.message, true); } }
 async function habitsPush() { try { const r = await post('/api/data/habits/push', { text: $('#habits').value }); toast(r.detail || 'Pushed'); } catch (e) { toast(e.message, true); } }
 async function uploadDeck() { const f = $('#apkg').files[0]; if (!f) return toast('Choose an .apkg first', true); const fd = new FormData(); fd.append('file', f); try { await post('/api/data/deck', fd); toast('Deck queued'); loadJobs(); } catch (e) { toast(e.message, true); } }
+async function showDeviceBriefing() { const box = $('#tasksPreview'); box.textContent = 'Reading the card…'; try { const r = await (await fetch('/api/data/briefing/device')).json(); if (r.detail) throw new Error(r.detail); box.textContent = 'On the device:\n' + r.text; } catch (err) { box.textContent = err.message; } }
 async function previewTasks() { const box = $('#tasksPreview'); box.textContent = 'Asking Calendar and Reminders…'; try { const r = await (await fetch('/api/briefing/tasks?refresh=1')).json(); box.textContent = (r.lines.length ? r.lines.join('\n') : '(nothing due today)') + (r.error ? '\n\nError: ' + r.error : ''); } catch (err) { box.textContent = err.message; } }
 async function saveBriefing(e) { e.preventDefault(); try { const r = await post('/api/data/briefing', new FormData($('#briefingForm'))); toast(r.detail || 'Saved and pushed'); } catch (err) { toast(err.message, true); } return false; }
 async function loadJobs() {
