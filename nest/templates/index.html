@@ -5,151 +5,317 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nest</title>
 <style>
-  :root { --ink: #1b1b1b; --muted: #666; --line: #ddd; --bg: #f7f6f2; --card: #fff; --accent: #2b5797; --ok: #2e7d32; --bad: #b3261e; }
+  :root {
+    --ink: #1c1b18; --muted: #6b6860; --line: #e4e1d8; --bg: #f4f2ec; --card: #ffffff; --card-2: #faf9f5;
+    --accent: #2b5797; --accent-ink: #fff; --accent-soft: #e6edf8; --ok: #2e7d32; --ok-soft: #e3f2e6;
+    --bad: #b3261e; --bad-soft: #fbe4e2; --warn: #8a6d00; --warn-soft: #fff4d6; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px -12px rgba(0,0,0,.18);
+    --r: 12px; --ease: cubic-bezier(.2,.7,.2,1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #ecebe6; --muted: #a09d94; --line: #2f2e2a; --bg: #161513; --card: #1f1e1b; --card-2: #24231f;
+      --accent: #7fa6e6; --accent-ink: #0f1a2e; --accent-soft: #223251; --ok: #7bc47f; --ok-soft: #1f3322; --bad: #ef8a80; --bad-soft: #3a1f1d;
+      --warn: #e0c05a; --warn-soft: #3a3316; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7); }
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; font: 15px/1.45 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg); }
-  header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
-  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
-  #status { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; gap: 14px; align-items: center; }
-  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--bad); margin-right: 6px; vertical-align: middle; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; font: 15px/1.5 -apple-system, "SF Pro Text", "Segoe UI", Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased; }
+  body.dragging::after { content: "Drop to convert and send"; position: fixed; inset: 12px; border: 3px dashed var(--accent); border-radius: 18px; background: color-mix(in srgb, var(--accent) 10%, transparent); display: grid; place-items: center; font-size: 22px; font-weight: 600; color: var(--accent); z-index: 50; pointer-events: none; animation: fadeIn .15s var(--ease); }
+
+  /* layout */
+  .app { display: grid; grid-template-columns: 200px minmax(0, 1fr) 360px; grid-template-rows: 56px 1fr; min-height: 100vh; }
+  header { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; padding: 0 20px; background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: .2px; display: flex; align-items: center; gap: 8px; }
+  header h1 .logo { width: 22px; height: 22px; border-radius: 7px; background: linear-gradient(135deg, var(--accent), #6b8fcf); display: inline-block; box-shadow: inset 0 0 0 2px rgba(255,255,255,.25); }
+  .pill { margin-left: auto; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; color: var(--muted); background: var(--card-2); transition: border-color .3s, box-shadow .3s; cursor: default; max-width: 60vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pill.on { border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--bad); flex: none; position: relative; transition: background .3s; }
   .dot.on { background: var(--ok); }
-  nav { display: flex; gap: 4px; padding: 10px 20px 0; flex-wrap: wrap; }
-  nav button { border: 1px solid var(--line); background: var(--card); padding: 7px 14px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 14px; }
-  nav button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-  main { padding: 20px; max-width: 1000px; }
-  section { display: none; background: var(--card); border: 1px solid var(--line); border-radius: 0 10px 10px 10px; padding: 18px 20px; }
-  section.active { display: block; }
-  h2 { font-size: 16px; margin: 0 0 10px; }
-  h3 { font-size: 14px; margin: 18px 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-  textarea, input[type=text], input[type=number], input[type=password], select { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
-  textarea { min-height: 120px; font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
-  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+  .dot.on::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--ok); opacity: 0; animation: ping 2.4s ease-out infinite; }
+  .dot.checking { background: var(--warn); }
+  nav { padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 56px; height: calc(100vh - 56px); border-right: 1px solid var(--line); }
+  nav button { display: flex; align-items: center; gap: 10px; text-align: left; border: 0; background: transparent; color: var(--muted); padding: 9px 12px; border-radius: 9px; cursor: pointer; font: inherit; font-size: 14px; font-weight: 500; transition: background .15s, color .15s, transform .1s; }
+  nav button svg { width: 18px; height: 18px; flex: none; opacity: .8; }
+  nav button:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); }
+  nav button:active { transform: scale(.98); }
+  nav button.active { background: var(--accent-soft); color: var(--accent); }
+  nav .spacer { flex: 1; }
+  nav .hint { font-size: 12px; color: var(--muted); padding: 0 12px 6px; }
+  main { padding: 22px 26px 60px; min-width: 0; }
+  aside { border-left: 1px solid var(--line); background: var(--card); position: sticky; top: 56px; height: calc(100vh - 56px); display: flex; flex-direction: column; min-width: 0; }
+  @media (max-width: 1100px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: 56px auto 1fr auto; }
+    nav { flex-direction: row; height: auto; position: static; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 12px; overflow-x: auto; }
+    nav .spacer, nav .hint { display: none; }
+    aside { position: static; height: auto; border-left: 0; border-top: 1px solid var(--line); max-height: 60vh; }
+  }
+
+  /* content */
+  section { display: none; }
+  section.active { display: block; animation: fadeUp .28s var(--ease); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 20px 22px; margin-bottom: 18px; box-shadow: var(--shadow); }
+  .card h2 { font-size: 16px; margin: 0 0 6px; display: flex; align-items: center; gap: 10px; }
+  .card h2 .sub { font-weight: 400; color: var(--muted); font-size: 13px; }
+  h3 { font-size: 12px; margin: 18px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  p { margin: 6px 0 12px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  code { background: color-mix(in srgb, var(--ink) 7%, transparent); padding: 1px 6px; border-radius: 5px; font-size: 12.5px; font-family: ui-monospace, Menlo, monospace; }
+  textarea, input[type=text], input[type=number], input[type=password], select { width: 100%; font: inherit; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--card-2); color: var(--ink); transition: border-color .15s, box-shadow .15s, background .15s; }
+  textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); background: var(--card); }
+  textarea { min-height: 120px; font-family: ui-monospace, Menlo, monospace; font-size: 13px; resize: vertical; line-height: 1.5; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
   .row label { min-width: 110px; color: var(--muted); font-size: 13px; }
   .row input, .row select { flex: 1; min-width: 160px; }
-  button.primary { background: var(--accent); color: #fff; border: 0; padding: 9px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
-  button.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; }
-  button:disabled { opacity: .5; cursor: default; }
-  .drop { border: 2px dashed var(--line); border-radius: 10px; padding: 26px; text-align: center; color: var(--muted); margin: 10px 0; }
-  .drop.over { border-color: var(--accent); color: var(--accent); }
+  .field-hint { font-size: 12px; color: var(--muted); margin: -4px 0 10px; }
+
+  /* buttons */
+  button.btn { --bg: var(--card); --fg: var(--ink); --bd: var(--line); position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg); color: var(--fg); border: 1px solid var(--bd); padding: 9px 16px; border-radius: 9px; cursor: pointer; font: inherit; font-size: 14px; font-weight: 500; line-height: 1.2; transition: transform .12s var(--ease), box-shadow .2s, background .15s, border-color .15s, filter .15s; user-select: none; white-space: nowrap; }
+  button.btn:hover { filter: brightness(1.03); box-shadow: 0 2px 8px -2px rgba(0,0,0,.18); transform: translateY(-1px); }
+  button.btn:active { transform: translateY(0) scale(.97); box-shadow: none; filter: brightness(.96); transition-duration: .05s; }
+  button.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+  button.btn.primary { --bg: var(--accent); --fg: var(--accent-ink); --bd: var(--accent); }
+  button.btn.danger { --bg: var(--bad-soft); --fg: var(--bad); --bd: transparent; }
+  button.btn.small { padding: 5px 10px; font-size: 12.5px; border-radius: 7px; }
+  button.btn:disabled { opacity: .55; cursor: default; transform: none; box-shadow: none; filter: none; }
+  button.btn.busy { color: transparent !important; pointer-events: none; }
+  button.btn.busy::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; color: var(--fg); animation: spin .7s linear infinite; }
+  button.btn.ok { --bg: var(--ok-soft); --fg: var(--ok); --bd: transparent; animation: pop .35s var(--ease); }
+  button.btn.err { --bg: var(--bad-soft); --fg: var(--bad); --bd: transparent; animation: shake .4s var(--ease); }
+  .ripple { position: absolute; border-radius: 50%; background: currentColor; opacity: .25; transform: scale(0); animation: ripple .5s var(--ease) forwards; pointer-events: none; }
+
+  .drop { border: 2px dashed var(--line); border-radius: var(--r); padding: 28px; text-align: center; color: var(--muted); margin: 10px 0; transition: border-color .2s, background .2s, transform .2s; background: var(--card-2); }
+  .drop:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+  .drop.over { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); transform: scale(1.01); }
+  .drop .big { font-size: 15px; color: var(--ink); margin-bottom: 4px; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
-  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; background: #eee; }
-  .tag.done { background: #e3f2e6; color: var(--ok); } .tag.failed { background: #fbe4e2; color: var(--bad); }
-  .tag.waiting, .tag.queued { background: #fff4d6; color: #8a6d00; } .tag.running { background: #e2ecfa; color: var(--accent); }
-  .muted { color: var(--muted); font-size: 13px; }
-  #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
-  #toast.show { opacity: 1; }
-  code { background: #eee; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .5px; }
+  tr:last-child td { border-bottom: 0; }
+  tr.new { animation: fadeUp .3s var(--ease); }
+  .empty { padding: 26px 10px; text-align: center; color: var(--muted); font-size: 13.5px; }
+  .empty .ico { font-size: 26px; margin-bottom: 6px; opacity: .6; }
+  pre.out { white-space: pre-wrap; background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; margin: 8px 0 0; min-height: 0; max-height: 300px; overflow: auto; }
+  pre.out:empty { display: none; }
+  kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; color: var(--muted); background: var(--card-2); }
+
+  /* jobs panel */
+  aside .head { display: flex; align-items: center; gap: 8px; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+  aside .head h2 { font-size: 14px; margin: 0; }
+  aside .head .count { font-size: 12px; color: var(--muted); }
+  aside .head .actions { margin-left: auto; display: flex; gap: 6px; }
+  .filters { display: flex; gap: 6px; padding: 10px 16px 0; flex-wrap: wrap; }
+  .chip { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 12px; cursor: pointer; transition: all .15s; }
+  .chip:hover { color: var(--ink); }
+  .chip.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .chip:active { transform: scale(.95); }
+  #jobsList { overflow-y: auto; padding: 10px 12px 20px; flex: 1; }
+  .job { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: start; padding: 10px 8px; border-radius: 10px; transition: background .2s; position: relative; }
+  .job:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+  .job + .job { margin-top: 2px; }
+  .job.new { animation: slideIn .35s var(--ease); }
+  .job.changed { animation: flash 1.2s var(--ease); }
+  .job .st { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; background: var(--muted); position: relative; }
+  .job .st.done { background: var(--ok); } .job .st.failed { background: var(--bad); } .job .st.waiting, .job .st.queued { background: var(--warn); }
+  .job .st.running { background: var(--accent); }
+  .job .st.running::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent); animation: ping 1.4s ease-out infinite; }
+  .job .st.waiting::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--warn); animation: ping 3s ease-out infinite; }
+  .job .t { font-size: 13.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .job .m { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .job .d { font-size: 12px; color: var(--muted); margin-top: 3px; white-space: pre-wrap; word-break: break-word; }
+  .job .d.bad { color: var(--bad); }
+  .job .tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--muted); text-transform: capitalize; }
+  .job .tag.done { background: var(--ok-soft); color: var(--ok); } .job .tag.failed { background: var(--bad-soft); color: var(--bad); }
+  .job .tag.waiting, .job .tag.queued { background: var(--warn-soft); color: var(--warn); } .job .tag.running { background: var(--accent-soft); color: var(--accent); }
+  .job .act { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .job .act button { opacity: 0; transition: opacity .15s; }
+  .job:hover .act button, .job:focus-within .act button { opacity: 1; }
+  .bar { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+  .bar i { display: block; height: 100%; width: 40%; background: var(--accent); border-radius: 2px; animation: indeterminate 1.3s var(--ease) infinite; }
+
+  /* toasts */
+  #toasts { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 60; pointer-events: none; align-items: center; }
+  .toast { display: flex; align-items: center; gap: 10px; background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; box-shadow: var(--shadow); animation: toastIn .3s var(--ease); max-width: 80vw; }
+  .toast.bad { background: var(--bad); color: #fff; } .toast.good { background: var(--ok); color: #fff; }
+  .toast.out { animation: toastOut .25s var(--ease) forwards; }
+  .toast .ic { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.2); font-size: 12px; flex: none; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+  @keyframes flash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
+  @keyframes ping { 0% { transform: scale(.6); opacity: .8; } 100% { transform: scale(1.8); opacity: 0; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pop { 0% { transform: scale(.96); } 50% { transform: scale(1.04); } 100% { transform: none; } }
+  @keyframes shake { 0%,100% { transform: none; } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+  @keyframes ripple { to { transform: scale(2.6); opacity: 0; } }
+  @keyframes indeterminate { 0% { transform: translateX(-120%); } 100% { transform: translateX(300%); } }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
+  @keyframes toastOut { to { opacity: 0; transform: translateY(8px) scale(.96); } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 </style>
 </head>
 <body>
+<div class="app">
 <header>
-  <h1>Nest</h1>
-  <div id="status"><span><span class="dot" id="dot"></span><span id="statusText">checking device…</span></span><span id="pending"></span></div>
+  <h1><span class="logo"></span>Nest</h1>
+  <div class="pill" id="pill" title=""><span class="dot checking" id="dot"></span><span id="statusText">checking device…</span></div>
 </header>
-<nav>
-  <button data-tab="send" class="active">Send</button>
-  <button data-tab="library">Library</button>
-  <button data-tab="feeds">Feeds</button>
-  <button data-tab="data">Device data</button>
-  <button data-tab="jobs">Jobs</button>
-  <button data-tab="settings">Settings</button>
+
+<nav id="nav">
+  <button data-tab="send" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>Send</button>
+  <button data-tab="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Library</button>
+  <button data-tab="feeds"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>Feeds</button>
+  <button data-tab="data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 4v6"/></svg>Device data</button>
+  <button data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</button>
+  <div class="spacer"></div>
+  <div class="hint">Drop files anywhere to convert them. <kbd>⌘</kbd><kbd>↵</kbd> sends URLs.</div>
 </nav>
+
 <main>
-
 <section id="tab-send" class="active">
-  <h2>Web page → EPUB</h2>
-  <p class="muted">One URL per line. Each becomes a clean EPUB with grayscale images and lands in <code>{{ config.books_dir }}</code> when the device is in File Transfer mode.</p>
-  <textarea id="urls" placeholder="https://…"></textarea>
-  <div class="row">
-    <button class="primary" onclick="sendUrls('/api/send/url')">Convert to EPUB and send</button>
-    <button class="ghost" onclick="sendUrls('/api/send/readlater')">Send to Read Later instead</button>
+  <div class="card">
+    <h2>Web page → EPUB <span class="sub">clean text, grayscale images, lands in <code>{{ config.books_dir }}</code></span></h2>
+    <textarea id="urls" placeholder="https://…  (one per line)"></textarea>
+    <div class="row">
+      <button class="btn primary" onclick="run(this, () => sendUrls('/api/send/url'))">Convert and send</button>
+      <button class="btn" onclick="run(this, () => sendUrls('/api/send/readlater'))">Send to Read Later</button>
+      <span class="muted" id="urlCount"></span>
+    </div>
+    <p class="muted">Read Later only queues the link; the reader fetches the page itself when you open it there.</p>
   </div>
-  <p class="muted">Read Later queues the link on the device; the device fetches the page itself when you open it.</p>
-
-  <h2 style="margin-top:22px">Document → EPUB</h2>
-  <div class="drop" id="drop">Drop files here or <label style="color:var(--accent);cursor:pointer"><input type="file" id="fileInput" multiple style="display:none">choose files</label><br><span class="muted">{{ convertible|join(", ") }}, epub</span></div>
+  <div class="card">
+    <h2>Document → EPUB</h2>
+    <div class="drop" id="drop"><div class="big">Drop files here or <label style="color:var(--accent);cursor:pointer"><input type="file" id="fileInput" multiple style="display:none">choose files</label></div><span class="muted">{{ convertible|join(", ") }}, epub</span></div>
+  </div>
 </section>
 
 <section id="tab-library">
-  <div class="row"><h2 style="margin:0">Books on the device</h2><button class="ghost" onclick="loadLibrary()">Refresh</button></div>
-  <div id="libraryBox" class="muted">Device offline.</div>
+  <div class="card">
+    <h2>Books on the device <button class="btn small" style="margin-left:auto" onclick="run(this, loadLibrary)">Refresh</button></h2>
+    <div id="libraryBox"><div class="empty"><div class="ico">📚</div>Open File Transfer on the reader to browse its books.</div></div>
+  </div>
 </section>
 
 <section id="tab-feeds">
-  <h2>RSS digest</h2>
-  <div class="row">
-    <label>Per feed</label><input type="number" id="perFeed" value="{{ config.digest_per_feed }}" min="1" max="20" style="max-width:90px">
-    <label>Mode</label>
-    <select id="digestMode" style="max-width:220px">
-      <option value="digest" {% if config.digest_mode == 'digest' %}selected{% endif %}>One digest book</option>
-      <option value="articles" {% if config.digest_mode == 'articles' %}selected{% endif %}>One book per article</option>
-    </select>
-    <button class="primary" onclick="buildDigest()">Build digest now</button>
+  <div class="card">
+    <h2>RSS digest</h2>
+    <div class="row">
+      <label>Per feed</label><input type="number" id="perFeed" value="{{ config.digest_per_feed }}" min="1" max="20" style="max-width:90px">
+      <label>Mode</label>
+      <select id="digestMode" style="max-width:220px">
+        <option value="digest" {% if config.digest_mode == 'digest' %}selected{% endif %}>One digest book</option>
+        <option value="articles" {% if config.digest_mode == 'articles' %}selected{% endif %}>One book per article</option>
+      </select>
+      <button class="btn primary" onclick="run(this, buildDigest)">Build digest now</button>
+    </div>
+    <p class="muted">Articles already sent are skipped. Schedules live in <code>config.toml</code>.</p>
   </div>
-  <p class="muted">Articles already sent are skipped. Schedules live in <code>config.toml</code>.</p>
-  <h3>Subscriptions</h3>
-  <textarea id="subs">{{ subscriptions }}</textarea>
-  <div class="row">
-    <button class="ghost" onclick="saveFeeds('0')">Save locally</button>
-    <button class="primary" onclick="saveFeeds('1')">Save and push to device</button>
+  <div class="card">
+    <h2>Subscriptions <span class="sub">one feed URL per line, mirrored to the reader's RSS app</span></h2>
+    <textarea id="subs">{{ subscriptions }}</textarea>
+    <div class="row">
+      <button class="btn" onclick="run(this, () => saveFeeds('0'))">Save locally</button>
+      <button class="btn primary" onclick="run(this, () => saveFeeds('1'))">Save and push to device</button>
+    </div>
   </div>
 </section>
 
 <section id="tab-data">
-  <h2>Habits</h2>
-  <p class="muted">One per line: <code>name: 2026-09-01, 2026-09-03..2026-09-07</code>. Pull first to keep check-ins made on the device.</p>
-  <textarea id="habits">{{ habits }}</textarea>
-  <div class="row">
-    <button class="ghost" onclick="habitsPull()">Pull from device</button>
-    <button class="primary" onclick="habitsPush()">Save and push to device</button>
+  <div class="card">
+    <h2>Habits</h2>
+    <p class="muted">One per line: <code>name: 2026-09-01, 2026-09-03..2026-09-07</code>. Pull first to keep check-ins made on the device.</p>
+    <textarea id="habits">{{ habits }}</textarea>
+    <div class="row">
+      <button class="btn" onclick="run(this, habitsPull)">Pull from device</button>
+      <button class="btn primary" onclick="run(this, habitsPush)">Save and push to device</button>
+    </div>
   </div>
-
-  <h2 style="margin-top:22px">Flashcards</h2>
-  <p class="muted">Upload an Anki <code>.apkg</code> export. It becomes <code>/apps/flashcards/gre.deck</code> on the device.</p>
-  <div class="row"><input type="file" id="apkg" accept=".apkg"><button class="primary" onclick="uploadDeck()">Convert and send</button></div>
-
-  <h2 style="margin-top:22px">Sleep briefing</h2>
-  <p class="muted">Shown on the sleep screen when enabled. Weather via Open-Meteo needs a location. Today's tasks come from Apple Calendar and Reminders on this Mac: the reader fetches them from Nest, so Nest must be running and listening on the network (<code>server.host = "0.0.0.0"</code>) when the reader refreshes.</p>
-  <form id="briefingForm" onsubmit="return saveBriefing(event)">
-    <div class="row"><label>Enabled</label><select name="enabled" style="max-width:120px"><option value="0" {% if briefing.enabled != '1' %}selected{% endif %}>Off</option><option value="1" {% if briefing.enabled == '1' %}selected{% endif %}>On</option></select></div>
-    <div class="row"><label>City label</label><input type="text" name="city" value="{{ briefing.city }}" placeholder="Tashkent"></div>
-    <div class="row"><label>Latitude</label><input type="text" name="lat" value="{{ briefing.lat }}" placeholder="41.31"><label>Longitude</label><input type="text" name="lon" value="{{ briefing.lon }}" placeholder="69.28"></div>
-    <div class="row"><label>Tasks URL</label><input type="text" name="tasks_url" value="{{ briefing.tasks_url }}" placeholder="{{ tasks_url_default }} (filled in when left blank)"></div>
-    <div class="row"><button class="primary" type="submit">Save and push to device</button>{% if apple_enabled %}<button class="ghost" type="button" onclick="previewTasks()">Preview today's tasks</button>{% endif %}<button class="ghost" type="button" onclick="showDeviceBriefing()">Show config on device</button></div>
-  </form>
-  <pre id="tasksPreview" class="muted" style="white-space:pre-wrap"></pre>
-</section>
-
-<section id="tab-jobs">
-  <div class="row"><h2 style="margin:0">Jobs</h2><button class="ghost" onclick="loadJobs()">Refresh</button><button class="ghost" onclick="post('/api/jobs/flush').then(loadJobs)">Retry waiting now</button></div>
-  <div id="jobsBox"></div>
+  <div class="card">
+    <h2>Flashcards</h2>
+    <p class="muted">Upload an Anki <code>.apkg</code> export. It becomes <code>/apps/flashcards/gre.deck</code> on the device.</p>
+    <div class="row"><input type="file" id="apkg" accept=".apkg"><button class="btn primary" onclick="run(this, uploadDeck)">Convert and send</button></div>
+  </div>
+  <div class="card">
+    <h2>Sleep briefing</h2>
+    <p class="muted">Shown on the sleep screen when enabled. Weather via Open-Meteo needs a location. Today's tasks come from Apple Calendar and Reminders on this Mac; the reader fetches them from Nest, so Nest must be running when the reader refreshes.</p>
+    <form id="briefingForm" onsubmit="return false">
+      <div class="row"><label>Enabled</label><select name="enabled" style="max-width:120px"><option value="0" {% if briefing.enabled != '1' %}selected{% endif %}>Off</option><option value="1" {% if briefing.enabled == '1' %}selected{% endif %}>On</option></select></div>
+      <div class="row"><label>City label</label><input type="text" name="city" value="{{ briefing.city }}" placeholder="Tashkent"></div>
+      <div class="row"><label>Latitude</label><input type="text" name="lat" value="{{ briefing.lat }}" placeholder="41.31"><label>Longitude</label><input type="text" name="lon" value="{{ briefing.lon }}" placeholder="69.28"></div>
+      <div class="row"><label>Tasks URL</label><input type="text" name="tasks_url" value="{{ briefing.tasks_url }}" placeholder="{{ tasks_url_default }}"></div>
+      <div class="field-hint">Leave blank to use <code>{{ tasks_url_default }}</code>.</div>
+      <div class="row">
+        <button class="btn primary" onclick="run(this, saveBriefing)">Save and push to device</button>
+        {% if apple_enabled %}<button class="btn" onclick="run(this, previewTasks)">Preview today's tasks</button>{% endif %}
+        <button class="btn" onclick="run(this, showDeviceBriefing)">Show config on device</button>
+      </div>
+    </form>
+    <pre class="out" id="tasksPreview"></pre>
+  </div>
 </section>
 
 <section id="tab-settings">
-  <h2>Settings</h2>
-  <p>Edit <code>config.toml</code> in the Nest folder and restart. Current values:</p>
-  <table>
-    <tr><th>Device URLs</th><td>{{ config.device_urls|join(", ") }}</td></tr>
-    <tr><th>Books folder</th><td>{{ config.books_dir }}</td></tr>
-    <tr><th>Calibre</th><td>{{ config.calibre }}</td></tr>
-    <tr><th>Firmware repo</th><td>{{ config.firmware_repo }}</td></tr>
-    <tr><th>Subscriptions</th><td>{{ config.subscriptions_file }}</td></tr>
-    <tr><th>Habits</th><td>{{ config.habits_file }}</td></tr>
-    <tr><th>Briefing</th><td>{{ config.briefing_file }}</td></tr>
-    <tr><th>Watched folder</th><td>{{ config.watch_dir or "—" }}</td></tr>
-    <tr><th>Schedules</th><td>{% for s in config.schedules %}<code>{{ s.cron }}</code> → {{ s.job }}<br>{% else %}—{% endfor %}</td></tr>
-  </table>
-  <h3>How sending works</h3>
-  <p class="muted">Open <b>File Transfer</b> on the device and connect it to your Wi-Fi. Nest finds it at the device URL, uploads anything queued, and shows it as online above. Everything you send while it is offline waits in Jobs and goes out automatically the next time it appears.</p>
+  <div class="card">
+    <h2>Settings <span class="sub">edit <code>config.toml</code> in the Nest folder and restart</span></h2>
+    <table>
+      <tr><th>Device URLs</th><td>{{ config.device_urls|join(", ") }}</td></tr>
+      <tr><th>Books folder</th><td>{{ config.books_dir }}</td></tr>
+      <tr><th>Calibre</th><td>{{ config.calibre }}</td></tr>
+      <tr><th>Firmware repo</th><td>{{ config.firmware_repo }}</td></tr>
+      <tr><th>Subscriptions</th><td>{{ config.subscriptions_file }}</td></tr>
+      <tr><th>Habits</th><td>{{ config.habits_file }}</td></tr>
+      <tr><th>Briefing</th><td>{{ config.briefing_file }}</td></tr>
+      <tr><th>Watched folder</th><td>{{ config.watch_dir or "—" }}</td></tr>
+      <tr><th>Apple agenda</th><td>{{ "on" if apple_enabled else "off" }} · {{ tasks_url_default }}</td></tr>
+      <tr><th>Schedules</th><td>{% for s in config.schedules %}<code>{{ s.cron }}</code> → {{ s.job }}<br>{% else %}—{% endfor %}</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h2>How sending works</h2>
+    <p class="muted">Open <b>File Transfer</b> on the reader and connect it to your Wi-Fi. Nest finds it at the device URL, uploads anything queued, and shows it as online in the header. Everything you send while it is offline waits in the jobs panel and goes out automatically the next time the reader appears.</p>
+  </div>
 </section>
-
 </main>
-<div id="toast"></div>
+
+<aside>
+  <div class="head"><h2>Jobs</h2><span class="count" id="jobCount"></span>
+    <div class="actions"><button class="btn small" title="Try queued jobs against the device now" onclick="run(this, () => post('/api/jobs/flush').then(loadJobs))">Retry waiting</button></div>
+  </div>
+  <div class="filters" id="filters"><button class="chip active" data-f="all">All</button><button class="chip" data-f="active">Active</button><button class="chip" data-f="done">Done</button><button class="chip" data-f="failed">Failed</button></div>
+  <div id="jobsList"><div class="empty"><div class="ico">◎</div>Nothing queued yet.</div></div>
+</aside>
+</div>
+<div id="toasts"></div>
+
 <script>
 const $ = (s) => document.querySelector(s);
-function toast(msg, bad) { const t = $('#toast'); t.textContent = msg; t.style.background = bad ? 'var(--bad)' : 'var(--ink)'; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2600); }
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+// ---- feedback primitives
+function toast(msg, kind) {
+  const t = document.createElement('div');
+  t.className = 'toast ' + (kind === true || kind === 'bad' ? 'bad' : kind === 'good' ? 'good' : '');
+  t.innerHTML = `<span class="ic">${kind === true || kind === 'bad' ? '!' : kind === 'good' ? '✓' : '·'}</span><span></span>`;
+  t.lastChild.textContent = msg;
+  $('#toasts').appendChild(t);
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 260); }, 2800);
+}
+// Runs an async action from a button: ripple on press, spinner while pending, then a green/red flash.
+async function run(btn, fn) {
+  if (btn.classList.contains('busy')) return;
+  btn.classList.remove('ok', 'err'); btn.classList.add('busy');
+  const w = btn.getBoundingClientRect().width; btn.style.minWidth = w + 'px';
+  try { const r = await fn(); btn.classList.remove('busy'); if (r !== false) { btn.classList.add('ok'); } }
+  catch (e) { btn.classList.remove('busy'); btn.classList.add('err'); toast(e.message || String(e), true); }
+  finally { setTimeout(() => { btn.classList.remove('ok', 'err'); btn.style.minWidth = ''; }, 1100); }
+}
+document.addEventListener('pointerdown', e => {
+  const b = e.target.closest('button.btn, nav button, .chip'); if (!b) return;
+  const r = document.createElement('span'); r.className = 'ripple';
+  const rect = b.getBoundingClientRect(); const size = Math.max(rect.width, rect.height);
+  r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - rect.left - size/2}px;top:${e.clientY - rect.top - size/2}px`;
+  if (getComputedStyle(b).position === 'static') b.style.position = 'relative';
+  b.style.overflow = 'hidden'; b.appendChild(r); setTimeout(() => r.remove(), 520);
+});
 async function post(url, body) {
   const opts = { method: 'POST' };
   if (body instanceof FormData) opts.body = body; else if (body) { opts.body = new URLSearchParams(body); }
@@ -158,58 +324,114 @@ async function post(url, body) {
   if (!r.ok) throw new Error(data.detail || r.statusText);
   return data;
 }
-document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
-  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x === b));
-  document.querySelectorAll('main section').forEach(s => s.classList.toggle('active', s.id === 'tab-' + b.dataset.tab));
-  if (b.dataset.tab === 'library') loadLibrary(); if (b.dataset.tab === 'jobs') loadJobs();
-});
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function ago(ts) { const s = Math.max(0, (Date.now() / 1000 - ts)); if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s / 60) + ' min ago'; if (s < 86400) return Math.floor(s / 3600) + ' h ago'; return new Date(ts * 1000).toLocaleDateString(); }
+
+// ---- tabs
+function showTab(name) {
+  $$('nav button').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
+  $$('main section').forEach(s => { const on = s.id === 'tab-' + name; if (on && !s.classList.contains('active')) { s.classList.remove('active'); void s.offsetWidth; } s.classList.toggle('active', on); });
+  try { localStorage.setItem('nest.tab', name); } catch (e) {}
+  if (name === 'library') loadLibrary();
+}
+$$('nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+try { const t = localStorage.getItem('nest.tab'); if (t && $('#tab-' + t)) showTab(t); } catch (e) {}
+
+// ---- device status
+let lastOnline = null;
 async function refreshStatus() {
   try {
     const s = await (await fetch('/api/device/status')).json();
-    $('#dot').classList.toggle('on', s.online);
-    $('#statusText').textContent = s.online ? `${s.status.device || 'device'} at ${s.status.ip} · fw ${s.status.version} · heap ${Math.round(s.status.freeHeap/1024)} KB` : 'device offline (open File Transfer on the reader)';
-    $('#pending').textContent = s.pending ? `${s.pending} pending` : '';
-  } catch (e) { $('#statusText').textContent = 'Nest unreachable'; }
+    $('#dot').className = 'dot' + (s.online ? ' on' : '');
+    $('#pill').classList.toggle('on', s.online);
+    $('#statusText').textContent = s.online ? `${s.status.device || 'Reader'} online · ${s.status.ip}` : 'Reader offline';
+    $('#pill').title = s.online ? `firmware ${s.status.version} · free heap ${Math.round(s.status.freeHeap/1024)} KB` : 'Open File Transfer on the reader; queued jobs wait for it';
+    if (lastOnline === false && s.online) { toast('Reader connected', 'good'); loadJobs(); if ($('#tab-library').classList.contains('active')) loadLibrary(); }
+    lastOnline = s.online;
+  } catch (e) { $('#dot').className = 'dot'; $('#statusText').textContent = 'Nest unreachable'; }
 }
+
+// ---- send
 async function sendUrls(endpoint) {
-  const text = $('#urls').value.trim(); if (!text) return toast('Paste a URL first', true);
-  try { const r = await post(endpoint, { url: text }); toast(`Queued ${r.jobs.length} job(s)`); $('#urls').value = ''; loadJobs(); } catch (e) { toast(e.message, true); }
+  const text = $('#urls').value.trim(); if (!text) { toast('Paste a URL first', true); return false; }
+  const r = await post(endpoint, { url: text }); toast(`Queued ${r.jobs.length} job(s)`, 'good'); $('#urls').value = ''; updateUrlCount(); loadJobs();
 }
+function updateUrlCount() { const n = $('#urls').value.split('\n').filter(l => l.trim()).length; $('#urlCount').textContent = n > 1 ? `${n} links` : ''; }
+$('#urls').addEventListener('input', updateUrlCount);
+$('#urls').addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); $('#tab-send .btn.primary').click(); } });
 async function sendFiles(files) {
-  for (const f of files) { const fd = new FormData(); fd.append('file', f); try { await post('/api/send/file', fd); toast(`Queued ${f.name}`); } catch (e) { toast(`${f.name}: ${e.message}`, true); } }
+  let ok = 0;
+  for (const f of files) { const fd = new FormData(); fd.append('file', f); try { await post('/api/send/file', fd); ok++; } catch (e) { toast(`${f.name}: ${e.message}`, true); } }
+  if (ok) toast(`Queued ${ok} file(s)`, 'good');
   loadJobs();
 }
 const drop = $('#drop');
 drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
 drop.ondragleave = () => drop.classList.remove('over');
 drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); sendFiles(e.dataTransfer.files); };
-$('#fileInput').onchange = e => sendFiles(e.target.files);
+$('#fileInput').onchange = e => { sendFiles(e.target.files); e.target.value = ''; };
+let dragDepth = 0;
+window.addEventListener('dragenter', e => { if (e.dataTransfer?.types?.includes('Files')) { dragDepth++; document.body.classList.add('dragging'); } });
+window.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('dragging'); } });
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => { dragDepth = 0; document.body.classList.remove('dragging'); if (e.target.closest('#drop')) return; e.preventDefault(); if (e.dataTransfer.files.length) { showTab('send'); sendFiles(e.dataTransfer.files); } });
+
+// ---- library
 async function loadLibrary() {
   const box = $('#libraryBox');
-  try {
-    const files = await (await fetch('/api/library')).json();
-    if (!Array.isArray(files)) throw new Error(files.detail || 'offline');
-    if (!files.length) { box.textContent = 'No files.'; return; }
-    box.innerHTML = '<table><tr><th>Name</th><th>Size</th><th></th></tr>' + files.map(f => `<tr><td>${f.is_dir ? '📁 ' : ''}${esc(f.name)}</td><td>${f.is_dir ? '' : (f.size/1024).toFixed(0) + ' KB'}</td><td>${f.is_dir ? '' : `<button class="ghost" onclick="deleteFile('${esc(f.path)}')">Delete</button>`}</td></tr>`).join('') + '</table>';
-  } catch (e) { box.textContent = 'Device offline. Open File Transfer on the reader and refresh.'; }
+  const r = await fetch('/api/library'); const files = await r.json();
+  if (!r.ok) { box.innerHTML = '<div class="empty"><div class="ico">📡</div>Reader offline. Open File Transfer and refresh.</div>'; return false; }
+  if (!files.length) { box.innerHTML = '<div class="empty"><div class="ico">📚</div>No books yet.</div>'; return; }
+  box.innerHTML = '<table><tr><th>Name</th><th>Size</th><th></th></tr>' + files.map(f => `<tr class="new"><td>${f.is_dir ? '📁 ' : ''}${esc(f.name)}</td><td class="muted">${f.is_dir ? '' : (f.size/1024).toFixed(0) + ' KB'}</td><td style="text-align:right">${f.is_dir ? '' : `<button class="btn small" data-path="${esc(f.path)}" onclick="confirmDelete(this)">Delete</button>`}</td></tr>`).join('') + '</table>';
 }
-async function deleteFile(path) { if (!confirm('Delete ' + path + ' from the device?')) return; try { await post('/api/library/delete', { path }); toast('Deleted'); loadLibrary(); } catch (e) { toast(e.message, true); } }
-async function buildDigest() { try { await post('/api/feeds/digest', { per_feed: $('#perFeed').value, mode: $('#digestMode').value }); toast('Digest queued'); loadJobs(); } catch (e) { toast(e.message, true); } }
-async function saveFeeds(push) { try { const r = await post('/api/feeds/save', { text: $('#subs').value, push }); toast(r.detail || (r.pushed ? 'Saved and pushed' : 'Saved locally')); } catch (e) { toast(e.message, true); } }
-async function habitsPull() { try { const r = await post('/api/data/habits/pull'); $('#habits').value = r.text; toast('Pulled from device'); } catch (e) { toast(e.message, true); } }
-async function habitsPush() { try { const r = await post('/api/data/habits/push', { text: $('#habits').value }); toast(r.detail || 'Pushed'); } catch (e) { toast(e.message, true); } }
-async function uploadDeck() { const f = $('#apkg').files[0]; if (!f) return toast('Choose an .apkg first', true); const fd = new FormData(); fd.append('file', f); try { await post('/api/data/deck', fd); toast('Deck queued'); loadJobs(); } catch (e) { toast(e.message, true); } }
-async function showDeviceBriefing() { const box = $('#tasksPreview'); box.textContent = 'Reading the card…'; try { const r = await (await fetch('/api/data/briefing/device')).json(); if (r.detail) throw new Error(r.detail); box.textContent = 'On the device:\n' + r.text; } catch (err) { box.textContent = err.message; } }
-async function previewTasks() { const box = $('#tasksPreview'); box.textContent = 'Asking Calendar and Reminders…'; try { const r = await (await fetch('/api/briefing/tasks?refresh=1')).json(); box.textContent = (r.lines.length ? r.lines.join('\n') : '(nothing due today)') + (r.error ? '\n\nError: ' + r.error : ''); } catch (err) { box.textContent = err.message; } }
-async function saveBriefing(e) { e.preventDefault(); try { const r = await post('/api/data/briefing', new FormData($('#briefingForm'))); toast(r.detail || 'Saved and pushed'); } catch (err) { toast(err.message, true); } return false; }
+// Two-step delete: first press arms the button, second within 3 s deletes.
+function confirmDelete(btn) {
+  if (btn.dataset.armed) { run(btn, async () => { await post('/api/library/delete', { path: btn.dataset.path }); toast('Deleted', 'good'); btn.closest('tr').style.opacity = '.3'; setTimeout(loadLibrary, 500); }); return; }
+  btn.dataset.armed = '1'; btn.classList.add('danger'); btn.textContent = 'Really delete?';
+  setTimeout(() => { delete btn.dataset.armed; btn.classList.remove('danger'); btn.textContent = 'Delete'; }, 3000);
+}
+
+// ---- feeds / data
+async function buildDigest() { await post('/api/feeds/digest', { per_feed: $('#perFeed').value, mode: $('#digestMode').value }); toast('Digest queued', 'good'); loadJobs(); }
+async function saveFeeds(push) { const r = await post('/api/feeds/save', { text: $('#subs').value, push }); toast(r.detail || (r.pushed ? 'Saved and pushed' : 'Saved locally'), r.pushed || push === '0' ? 'good' : undefined); if (push === '1' && !r.pushed) return false; }
+async function habitsPull() { const r = await post('/api/data/habits/pull'); $('#habits').value = r.text; toast('Pulled from device', 'good'); }
+async function habitsPush() { const r = await post('/api/data/habits/push', { text: $('#habits').value }); toast(r.detail || 'Pushed', r.pushed === false ? undefined : 'good'); if (r.pushed === false) return false; }
+async function uploadDeck() { const f = $('#apkg').files[0]; if (!f) { toast('Choose an .apkg first', true); return false; } const fd = new FormData(); fd.append('file', f); await post('/api/data/deck', fd); toast('Deck queued', 'good'); loadJobs(); }
+async function showDeviceBriefing() { const box = $('#tasksPreview'); box.textContent = 'Reading the card…'; try { const r = await (await fetch('/api/data/briefing/device')).json(); if (r.detail) throw new Error(r.detail); box.textContent = 'On the device:\n' + r.text; } catch (err) { box.textContent = err.message; throw err; } }
+async function previewTasks() { const box = $('#tasksPreview'); box.textContent = 'Asking Calendar and Reminders (10–20 s)…'; const r = await (await fetch('/api/briefing/tasks?refresh=1')).json(); box.textContent = (r.lines.length ? r.lines.join('\n') : '(nothing due today)') + (r.error ? '\n\nError: ' + r.error : ''); if (r.error) throw new Error(r.error); }
+async function saveBriefing() { const r = await post('/api/data/briefing', new FormData($('#briefingForm'))); toast(r.detail || 'Saved and pushed', r.pushed ? 'good' : undefined); if (!r.pushed) return false; }
+
+// ---- jobs panel (always visible, live)
+let jobFilter = 'all', jobSnapshot = new Map(), firstLoad = true;
+$$('#filters .chip').forEach(c => c.onclick = () => { jobFilter = c.dataset.f; $$('#filters .chip').forEach(x => x.classList.toggle('active', x === c)); renderJobs(lastJobs); });
+let lastJobs = [];
 async function loadJobs() {
-  const jobs = await (await fetch('/api/jobs')).json();
-  const box = $('#jobsBox');
-  if (!jobs.length) { box.innerHTML = '<p class="muted">No jobs yet.</p>'; return; }
-  box.innerHTML = '<table><tr><th>#</th><th>Job</th><th>Status</th><th>Detail</th><th></th></tr>' + jobs.map(j => `<tr><td>${j.id}</td><td>${esc(j.title)}<br><span class="muted">${j.kind} · ${new Date(j.created*1000).toLocaleString()}</span></td><td><span class="tag ${j.status}">${j.status}</span></td><td class="muted">${esc(j.detail)}</td><td>${['failed','waiting','done'].includes(j.status) ? `<button class="ghost" onclick="post('/api/jobs/${j.id}/retry').then(loadJobs)">Retry</button>` : ''}</td></tr>`).join('') + '</table>';
+  try { lastJobs = await (await fetch('/api/jobs')).json(); } catch (e) { return; }
+  renderJobs(lastJobs);
 }
-function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-refreshStatus(); setInterval(refreshStatus, 15000); loadJobs(); setInterval(() => { if ($('#tab-jobs').classList.contains('active')) loadJobs(); }, 5000);
+function renderJobs(jobs) {
+  const active = jobs.filter(j => ['queued', 'running', 'waiting'].includes(j.status)).length;
+  $('#jobCount').textContent = jobs.length ? (active ? `${active} active · ${jobs.length} total` : `${jobs.length} total`) : '';
+  const shown = jobs.filter(j => jobFilter === 'all' || (jobFilter === 'active' ? ['queued', 'running', 'waiting'].includes(j.status) : j.status === jobFilter));
+  const list = $('#jobsList');
+  if (!shown.length) { list.innerHTML = `<div class="empty"><div class="ico">◎</div>${jobs.length ? 'Nothing here.' : 'Nothing queued yet. Send a link or drop a file.'}</div>`; }
+  else list.innerHTML = shown.map(j => {
+    const prev = jobSnapshot.get(j.id);
+    const cls = firstLoad ? '' : !prev ? ' new' : prev !== j.status ? ' changed' : '';
+    const canRetry = ['failed', 'waiting', 'done'].includes(j.status);
+    const hint = j.status === 'waiting' ? 'waiting for the reader' : j.status === 'running' ? 'working…' : ago(j.created);
+    return `<div class="job${cls}" data-id="${j.id}">
+      <span class="st ${j.status}"></span>
+      <div style="min-width:0"><div class="t" title="${esc(j.title)}">${esc(j.title)}</div><div class="m">${esc(j.kind)} · ${hint}</div>${j.detail ? `<div class="d${j.status === 'failed' ? ' bad' : ''}">${esc(j.detail)}</div>` : ''}${j.status === 'running' ? '<div class="bar"><i></i></div>' : ''}</div>
+      <div class="act"><span class="tag ${j.status}">${j.status}</span>${canRetry ? `<button class="btn small" onclick="run(this, () => post('/api/jobs/${j.id}/retry').then(loadJobs))">${j.status === 'done' ? 'Again' : 'Retry'}</button>` : ''}</div>
+    </div>`;
+  }).join('');
+  if (!firstLoad) jobs.forEach(j => { const prev = jobSnapshot.get(j.id); if (prev && prev !== j.status && j.status === 'done') toast(`Done: ${j.title}`, 'good'); if (prev && prev !== j.status && j.status === 'failed') toast(`Failed: ${j.title}`, true); });
+  jobSnapshot = new Map(jobs.map(j => [j.id, j.status])); firstLoad = false;
+}
+refreshStatus(); setInterval(refreshStatus, 10000);
+loadJobs(); setInterval(loadJobs, 3000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { refreshStatus(); loadJobs(); } });
 </script>
 </body>
 </html>

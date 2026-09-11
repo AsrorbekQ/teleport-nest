@@ -80,9 +80,12 @@ EOF2
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.teleport.nest.plist
 ```
 
-The loop inside the app restarts uvicorn if it crashes. `pkill -f "uvicorn nest.app"` also
-matches the loop shell, so it stops Nest entirely. Restart after pulling new code with
-`pkill -f "uvicorn nest.app"; open ~/Applications/Nest.app`.
+The loop inside the app restarts uvicorn if it crashes. To stop or restart (for example
+after pulling new code), kill the app and the server together, then reopen:
+
+```sh
+pkill -f "Nest.app/Contents/MacOS"; pkill -f "uvicorn nest.app"; sleep 2; open ~/Applications/Nest.app
+```
 Log: `data-nest.log` in the repo.
 
 ## Layout
