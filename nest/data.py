@@ -14,13 +14,14 @@ from pathlib import Path
 from .config import Config
 from .device import DeviceClient
 
-BRIEFING_KEYS = ("enabled", "city", "lat", "lon", "tasks_url")
+BRIEFING_KEYS = ("enabled", "city", "lat", "lon", "tasks_url", "sleep_refresh")
 BRIEFING_TEMPLATE = """# Teleport sleep briefing. Copied to /apps/briefing/config.txt on the device.
 enabled=0
 city=
 lat=
 lon=
 tasks_url=
+sleep_refresh=stale
 """
 
 
@@ -51,6 +52,8 @@ def format_briefing(values: dict[str, str]) -> str:
         value = values.get(key, "")
         if key == "enabled":
             value = "1" if value in ("1", "true", "on", "yes") else "0"
+        if key == "sleep_refresh":
+            value = value if value in ("never", "stale", "always") else "stale"
         lines.append(f"{key}={value}")
     return "\n".join(lines) + "\n"
 

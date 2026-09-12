@@ -206,11 +206,12 @@ def create_app(config: Config | None = None, device: DeviceClient | None = None,
     @app.post("/api/data/briefing")
     def briefing_save(
         enabled: str = Form("0"), city: str = Form(""), lat: str = Form(""), lon: str = Form(""),
-        tasks_url: str = Form(""),
+        tasks_url: str = Form(""), sleep_refresh: str = Form("stale"),
     ):
         if not tasks_url.strip() and agenda is not None:
             tasks_url = tasks_url_default(config)
-        values = {"enabled": enabled, "city": city, "lat": lat, "lon": lon, "tasks_url": tasks_url.strip()}
+        values = {"enabled": enabled, "city": city, "lat": lat, "lon": lon, "tasks_url": tasks_url.strip(),
+                  "sleep_refresh": sleep_refresh}
         try:
             device_data.briefing_push(config, device, values)
             return {"ok": True, "pushed": True}

@@ -255,6 +255,8 @@
       <div class="row"><label>Enabled</label><select name="enabled" style="max-width:120px"><option value="0" {% if briefing.enabled != '1' %}selected{% endif %}>Off</option><option value="1" {% if briefing.enabled == '1' %}selected{% endif %}>On</option></select></div>
       <div class="row"><label>City label</label><input type="text" name="city" value="{{ briefing.city }}" placeholder="Tashkent"></div>
       <div class="row"><label>Latitude</label><input type="text" name="lat" value="{{ briefing.lat }}" placeholder="41.31"><label>Longitude</label><input type="text" name="lon" value="{{ briefing.lon }}" placeholder="69.28"></div>
+      <div class="row"><label>Refresh at sleep</label><select name="sleep_refresh" style="max-width:260px">{% for v, t in [('stale', 'Only when stale or empty (default)'), ('never', 'Never, use the Refresh button'), ('always', 'Every time the reader sleeps')] %}<option value="{{ v }}" {% if (briefing.sleep_refresh or 'stale') == v %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+      <div class="field-hint">The reader's clock resets on power-off, so "stale" refetches only after a Wi-Fi session synced the time and the data is older than 6 hours, or when nothing is cached.</div>
       <div class="row"><label>Tasks URL</label><input type="text" name="tasks_url" value="{{ briefing.tasks_url }}" placeholder="{{ tasks_url_default }}"></div>
       <div class="field-hint">Leave blank to use <code>{{ tasks_url_default }}</code>.</div>
       <div class="row">
